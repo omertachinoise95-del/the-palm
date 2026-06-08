@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>The Palm – Commander</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Montserrat:wght@300;400;500;600;700&display=swap');
+:root{--cream:#f0ebe0;--dark:#2a1f14;--gold:#b8965a;--gold-light:#d4aa6e;--purple:#6b3fa0;--text:#3d2e1e;--border:rgba(184,150,90,0.28)}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Montserrat',sans-serif;background:var(--cream);color:var(--text);min-height:100vh}
+
+#view-table{
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  background:linear-gradient(160deg,#2a1f14 0%,#6b3fa0 55%,#2a1f14 100%);
+  padding:32px 20px;
+}
+.palm-logo{text-align:center;margin-bottom:44px}
+.palm-logo .sub{color:var(--gold);font-size:10px;letter-spacing:5px;font-weight:300;margin-bottom:8px}
+.palm-logo h1{font-family:'Cormorant Garamond',serif;font-size:52px;font-weight:300;color:white;letter-spacing:8px;line-height:1}
+.palm-logo .lounge{color:var(--gold-light);font-size:12px;letter-spacing:6px;font-weight:300;margin-top:6px}
+.table-card{background:rgba(255,255,255,0.07);backdrop-filter:blur(20px);border:1px solid rgba(184,150,90,0.3);border-radius:22px;padding:36px 32px;width:100%;max-width:380px;text-align:center}
+.table-card h2{font-family:'Cormorant Garamond',serif;color:white;font-size:26px;font-weight:300;margin-bottom:6px}
+.table-card p{color:rgba(255,255,255,0.4);font-size:10px;letter-spacing:2px;margin-bottom:32px}
+.table-input-wrap{position:relative;margin-bottom:24px}
+.table-input-label{position:absolute;top:-10px;left:18px;background:rgba(107,63,160,0.9);color:var(--gold);font-size:9px;letter-spacing:3px;padding:2px 10px;border-radius:4px}
+.table-input{
+  width:100%;padding:18px;
+  background:rgba(255,255,255,0.06);border:1px solid rgba(184,150,90,0.3);border-radius:14px;
+  color:white;font-family:'Cormorant Garamond',serif;font-size:52px;font-weight:300;
+  text-align:center;outline:none;transition:all 0.25s;letter-spacing:4px;
+  -moz-appearance:textfield;
+}
+.table-input::-webkit-inner-spin-button,.table-input::-webkit-outer-spin-button{-webkit-appearance:none}
+.table-input:focus{border-color:var(--gold);background:rgba(184,150,90,0.08);box-shadow:0 0 0 3px rgba(184,150,90,0.12)}
+.table-input::placeholder{color:rgba(255,255,255,0.12);font-size:34px}
+.btn-gold{
+  width:100%;padding:16px;
+  background:linear-gradient(135deg,var(--gold),var(--gold-light));
+  border:none;border-radius:12px;color:#2a1f14;
+  font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;letter-spacing:3px;
+  cursor:pointer;transition:all 0.2s;
+}
+.btn-gold:active{transform:scale(0.97)}
+.btn-gold:disabled{opacity:0.35;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div id="view-table">
+  <div class="palm-logo">
+    <div class="sub">BIENVENUE AU</div>
+    <h1>THE PALM</h1>
+    <div class="lounge">RESTAURANT &amp; LOUNGE</div>
+  </div>
+  <div class="table-card">
+    <h2>Votre numéro de table</h2>
+    <p>SAISISSEZ LE NUMÉRO INDIQUÉ SUR VOTRE TABLE</p>
+    <div class="table-input-wrap">
+      <div class="table-input-label">N° TABLE</div>
+      <input class="table-input" type="number" id="tableInput" placeholder="01" min="1" max="1000" inputmode="numeric" oninput="onTableInput(this)">
+    </div>
+    <button class="btn-gold" id="confirmTable" disabled>ACCÉDER AU MENU →</button>
+  </div>
+</div>
+
+<script>
+let selectedTable = null;
+
+function onTableInput(el) {
+  const val = parseInt(el.value);
+  const valid = !isNaN(val) && val >= 1 && val <= 1000;
+  selectedTable = valid ? val : null;
+  document.getElementById('confirmTable').disabled = !valid;
+}
+
+document.getElementById('confirmTable').onclick = () => {
+  if (!selectedTable) return;
+  sessionStorage.setItem('tableNumber', selectedTable);
+  window.location.href = 'menu.html';
+};
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && selectedTable)
+    document.getElementById('confirmTable').click();
+});
+</script>
+</body>
+</html>
