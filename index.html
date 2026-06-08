@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>The Palm – Commander</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Montserrat:wght@300;400;500;600;700&display=swap');
+:root{
+  --cream:#f0ebe0;--dark:#2a1f14;--gold:#b8965a;--gold-light:#d4aa6e;
+  --purple:#6b3fa0;--text:#3d2e1e;--border:rgba(184,150,90,0.28);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Montserrat',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;overflow-x:hidden}
+.view{display:none}
+.view.active{display:block}
+
+/* ══════════════════════════════
+   TABLE SELECTION
+══════════════════════════════ */
+#view-table{
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  background:linear-gradient(160deg,#2a1f14 0%,#6b3fa0 55%,#2a1f14 100%);
+  padding:32px 20px;
+}
+#view-table.active{display:flex}
+.palm-logo{text-align:center;margin-bottom:44px}
+.palm-logo .sub{color:var(--gold);font-size:10px;letter-spacing:5px;font-weight:300;margin-bottom:8px}
+.palm-logo h1{font-family:'Cormorant Garamond',serif;font-size:52px;font-weight:300;color:white;letter-spacing:8px;line-height:1}
+.palm-logo .lounge{color:var(--gold-light);font-size:12px;letter-spacing:6px;font-weight:300;margin-top:6px}
+.table-card{background:rgba(255,255,255,0.07);backdrop-filter:blur(20px);border:1px solid rgba(184,150,90,0.3);border-radius:22px;padding:36px 32px;width:100%;max-width:380px;text-align:center}
+.table-card h2{font-family:'Cormorant Garamond',serif;color:white;font-size:26px;font-weight:300;margin-bottom:6px}
+.table-card p{color:rgba(255,255,255,0.4);font-size:10px;letter-spacing:2px;margin-bottom:32px}
+.table-input-wrap{position:relative;margin-bottom:24px}
+.table-input-label{position:absolute;top:-10px;left:18px;background:rgba(107,63,160,0.9);color:var(--gold);font-size:9px;letter-spacing:3px;padding:2px 10px;border-radius:4px}
+.table-input{
+  width:100%;padding:18px;
+  background:rgba(255,255,255,0.06);border:1px solid rgba(184,150,90,0.3);border-radius:14px;
+  color:white;font-family:'Cormorant Garamond',serif;font-size:52px;font-weight:300;
+  text-align:center;outline:none;transition:all 0.25s;letter-spacing:4px;
+  -moz-appearance:textfield;
+}
+.table-input::-webkit-inner-spin-button,.table-input::-webkit-outer-spin-button{-webkit-appearance:none}
+.table-input:focus{border-color:var(--gold);background:rgba(184,150,90,0.08);box-shadow:0 0 0 3px rgba(184,150,90,0.12)}
+.table-input::placeholder{color:rgba(255,255,255,0.12);font-size:34px}
+.btn-gold{
+  width:100%;padding:16px;
+  background:linear-gradient(135deg,var(--gold),var(--gold-light));
+  border:none;border-radius:12px;color:#2a1f14;
+  font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;letter-spacing:3px;
+  cursor:pointer;transition:all 0.2s;
+}
+.btn-gold:active{transform:scale(0.97)}
+.btn-gold:disabled{opacity:0.35;cursor:not-allowed}
+
+/* ══════════════════════════════
+   MENU
+══════════════════════════════ */
+#view-menu{background:var(--cream);min-height:100vh;padding-bottom:100px}
+#view-menu.active{display:block}
+
+.menu-header{
+  background:linear-gradient(135deg,var(--dark) 0%,var(--purple) 100%);
+  padding:16px 20px;text-align:center;
+  position:sticky;top:0;z-index:100;
+  box-shadow:0 4px 20px rgba(0,0,0,0.3);
+}
+.menu-header .table-info{color:var(--gold);font-size:10px;letter-spacing:4px;margin-bottom:3px}
+.menu-header h2{font-family:'Cormorant Garamond',serif;color:white;font-size:22px;font-weight:300;letter-spacing:4px}
+
+/* NAV TABS — scroll horizontal, sticky sous le header */
+.category-tabs{
+  display:flex;overflow-x:auto;
+  background:white;border-bottom:2px solid var(--border);
+  padding:0;scrollbar-width:none;
+  position:sticky;top:68px;z-index:99;
+  box-shadow:0 2px 10px rgba(0,0,0,0.06);
+}
+.category-tabs::-webkit-scrollbar{display:none}
+.cat-tab{
+  flex-shrink:0;padding:14px 20px;
+  font-size:9px;font-weight:700;letter-spacing:2px;
+  color:rgba(61,46,30,0.38);cursor:pointer;white-space:nowrap;
+  border-bottom:3px solid transparent;margin-bottom:-2px;
+  transition:all 0.2s;background:none;
+  border-top:none;border-left:none;border-right:none;
+}
+.cat-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+
+/* SECTIONS */
+.menu-section{padding:28px 18px 4px}
+.section-title{
+  font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:300;
+  letter-spacing:5px;color:var(--dark);margin-bottom:4px;
+}
+.section-sub{font-size:10px;letter-spacing:2px;color:var(--gold);margin-bottom:16px;text-transform:uppercase}
+
+/* ITEMS */
+.menu-item{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 0;border-bottom:1px solid var(--border);
+}
+.item-info{flex:1;min-width:0}
+.item-name{font-size:13px;font-weight:600;letter-spacing:0.5px;color:var(--dark);margin-bottom:3px}
+.item-desc{font-size:10px;color:rgba(61,46,30,0.5);line-height:1.5;white-space:normal}
+.item-price{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold);flex-shrink:0}
+.add-btn{
+  width:36px;height:36px;background:var(--dark);border:none;border-radius:50%;
+  color:var(--gold);font-size:24px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.15s;flex-shrink:0;
+}
+.add-btn:active{transform:scale(0.88);background:var(--gold);color:var(--dark)}
+.qty-control{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.qty-btn{
+  width:32px;height:32px;border-radius:50%;
+  border:1.5px solid var(--border);background:white;color:var(--dark);
+  font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all 0.15s;
+}
+.qty-btn:active{background:var(--dark);color:white;border-color:var(--dark)}
+.qty-num{font-weight:700;font-size:16px;min-width:22px;text-align:center;color:var(--dark)}
+
+.extra-note{
+  font-size:10px;color:rgba(61,46,30,0.55);
+  padding:10px 14px;background:rgba(184,150,90,0.06);
+  margin:8px 0;border-left:3px solid var(--gold);border-radius:0 6px 6px 0;
+}
+.section-divider{height:6px;background:linear-gradient(90deg,rgba(184,150,90,0.2),transparent);margin:4px 0}
+
+/* HOOKAH PARFUM SELECTOR */
+.hookah-item{padding:14px 0;border-bottom:1px solid var(--border)}
+.hookah-head{display:flex;align-items:center;gap:12px;margin-bottom:0}
+.hookah-head .item-info{flex:1}
+.hookah-toggle{
+  width:36px;height:36px;background:var(--dark);border:none;border-radius:50%;
+  color:var(--gold);font-size:22px;font-weight:300;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:all 0.15s;line-height:1;
+}
+.hookah-toggle:active{transform:scale(0.88)}
+.hookah-toggle.open{background:var(--gold);color:var(--dark)}
+.parfum-panel{
+  display:none;margin-top:12px;
+  background:rgba(184,150,90,0.06);border-radius:12px;padding:12px;
+  border:1px solid rgba(184,150,90,0.2);
+}
+.parfum-panel.open{display:block}
+.parfum-title{font-size:9px;letter-spacing:3px;color:var(--gold);margin-bottom:10px;text-transform:uppercase}
+.parfum-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.parfum-btn{
+  padding:12px 8px;border:1.5px solid rgba(184,150,90,0.25);border-radius:10px;
+  background:white;color:var(--text);font-size:11px;font-weight:600;
+  cursor:pointer;transition:all 0.15s;text-align:center;line-height:1.3;
+}
+.parfum-btn:active{background:var(--dark);color:var(--gold);border-color:var(--gold)}
+.parfum-btn.just-added{background:var(--dark);color:var(--gold);border-color:var(--gold);transform:scale(0.95)}
+.hookah-added-list{margin-top:10px}
+.hal-title{font-size:9px;letter-spacing:2px;color:rgba(61,46,30,0.45);margin-bottom:8px;text-transform:uppercase}
+.hal-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(42,31,20,0.06);border-radius:10px;margin-bottom:6px;border:1px solid rgba(184,150,90,0.15)}
+.hal-parfum{font-size:12px;font-weight:500;color:var(--dark)}
+.hal-right{display:flex;align-items:center;gap:10px}
+.hal-price{font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--gold)}
+.hal-del{background:none;border:none;color:rgba(61,46,30,0.35);font-size:14px;cursor:pointer;padding:4px;transition:all 0.15s;line-height:1}
+.hal-del:active{color:var(--dark);transform:scale(0.9)}
+
+/* CART BAR */
+.cart-bar{
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--dark);padding:14px 20px;
+  display:none;align-items:center;justify-content:space-between;
+  z-index:200;box-shadow:0 -4px 24px rgba(0,0,0,0.4);
+}
+.cart-bar.visible{display:flex}
+.cart-info .cart-count{font-size:10px;letter-spacing:2px;color:var(--gold)}
+.cart-info .cart-total{font-family:'Cormorant Garamond',serif;font-size:26px;color:white;line-height:1.1}
+.btn-cart{
+  padding:14px 24px;background:linear-gradient(135deg,var(--gold),var(--gold-light));
+  border:none;border-radius:12px;color:#2a1f14;
+  font-size:11px;font-weight:700;letter-spacing:2px;cursor:pointer;
+  white-space:nowrap;
+}
+.btn-cart:active{transform:scale(0.97)}
+
+/* ══════════════════════════════
+   CART VIEW
+══════════════════════════════ */
+#view-cart{background:var(--cream);min-height:100vh}
+#view-cart.active{display:block}
+.cart-header{
+  background:linear-gradient(135deg,var(--dark),var(--purple));
+  padding:20px 18px;color:white;
+  display:flex;align-items:center;gap:14px;
+}
+.back-btn{background:none;border:none;color:var(--gold);font-size:26px;cursor:pointer;padding:2px 6px;line-height:1}
+.cart-header h2{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;letter-spacing:3px}
+.table-badge{margin-left:auto;background:rgba(184,150,90,0.2);border:1px solid var(--gold);border-radius:8px;padding:5px 12px;font-size:10px;color:var(--gold);letter-spacing:2px;white-space:nowrap}
+.cart-items{padding:16px 18px}
+.cart-item{display:flex;justify-content:space-between;align-items:center;padding:16px 0;border-bottom:1px solid var(--border)}
+.cart-item-left{flex:1}
+.cart-item-name{font-size:13px;font-weight:600;color:var(--dark);margin-bottom:3px}
+.cart-item-sub{font-size:11px;color:var(--gold);letter-spacing:0.5px}
+.cart-item-right{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.cart-item-price{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--dark)}
+.delete-btn{background:none;border:none;font-size:18px;cursor:pointer;opacity:0.45;transition:opacity 0.15s;padding:4px}
+.delete-btn:hover{opacity:1}
+.cart-total-block{margin:16px 18px;padding:20px;background:var(--dark);border-radius:16px}
+.total-line{display:flex;justify-content:space-between;color:rgba(255,255,255,0.4);font-size:11px;margin-bottom:10px;letter-spacing:1px}
+.total-line.main{color:var(--gold);font-size:15px;font-weight:700;margin-bottom:0;letter-spacing:2px}
+.note-section{padding:0 18px 18px}
+.note-label{font-size:10px;letter-spacing:3px;color:var(--gold);margin-bottom:8px}
+textarea{width:100%;padding:13px;border:1px solid var(--border);border-radius:12px;background:white;font-family:'Montserrat',sans-serif;font-size:13px;color:var(--dark);resize:none;outline:none}
+textarea:focus{border-color:var(--gold)}
+.confirm-btn-wrap{padding:0 18px 48px}
+
+/* ══════════════════════════════
+   SUCCESS
+══════════════════════════════ */
+#view-success{
+  background:linear-gradient(160deg,#2a1f14,#6b3fa0);min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;
+}
+#view-success.active{display:flex}
+.success-icon{font-size:70px;margin-bottom:24px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+#view-success h2{font-family:'Cormorant Garamond',serif;color:white;font-size:36px;font-weight:300;letter-spacing:4px;text-align:center;margin-bottom:10px}
+#view-success p{color:rgba(255,255,255,0.55);text-align:center;font-size:12px;letter-spacing:1px;margin-bottom:36px;line-height:2.3}
+.order-num{background:rgba(184,150,90,0.14);border:1px solid var(--gold);border-radius:16px;padding:18px 36px;margin-bottom:28px;text-align:center}
+.order-num .label{color:var(--gold);font-size:10px;letter-spacing:3px;margin-bottom:5px}
+.order-num .num{font-family:'Cormorant Garamond',serif;color:white;font-size:44px}
+
+/* ══════════════════════════════
+   OVERLAYS
+══════════════════════════════ */
+.toast{
+  position:fixed;top:16px;left:50%;
+  transform:translateX(-50%) translateY(-120px);
+  background:linear-gradient(135deg,#219a52,#27ae60);
+  color:white;padding:12px 22px;border-radius:12px;
+  font-size:12px;font-weight:600;letter-spacing:1px;
+  z-index:9999;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow:0 8px 24px rgba(0,0,0,0.4);max-width:88vw;text-align:center;
+}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.error{background:linear-gradient(135deg,#c0392b,#e74c3c)}
+.loading-overlay{
+  position:fixed;inset:0;background:rgba(18,16,30,0.82);backdrop-filter:blur(8px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:9000;transition:opacity 0.3s;
+}
+.loading-overlay.hidden{opacity:0;pointer-events:none}
+.spinner{width:42px;height:42px;border:3px solid rgba(184,150,90,0.2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-overlay p{color:rgba(255,255,255,0.45);font-size:10px;letter-spacing:3px}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay hidden" id="loadingOverlay"><div class="spinner"></div><p>CHARGEMENT...</p></div>
+<div class="toast" id="toast"></div>
+
+<!-- ══ TABLE ══ -->
+<div id="view-table" class="view active">
+  <div class="palm-logo">
+    <div class="sub">🌴 BIENVENUE AU</div>
+    <h1>THE PALM</h1>
+    <div class="lounge">RESTAURANT &amp; LOUNGE</div>
+  </div>
+  <div class="table-card">
+    <h2>Votre numéro de table</h2>
+    <p>SAISISSEZ LE NUMÉRO INDIQUÉ SUR VOTRE TABLE</p>
+    <div class="table-input-wrap">
+      <div class="table-input-label">N° TABLE</div>
+      <input class="table-input" type="number" id="tableInput" placeholder="01" min="1" max="1000" inputmode="numeric" oninput="onTableInput(this)">
+    </div>
+    <button class="btn-gold" id="confirmTable" disabled>ACCÉDER AU MENU →</button>
+  </div>
+</div>
+
+<!-- ══ MENU ══ -->
+<div id="view-menu" class="view">
+  <div class="menu-header">
+    <div class="table-info" id="menuTableLabel">TABLE —</div>
+    <h2>THE PALM</h2>
+  </div>
+  <div class="category-tabs" id="catTabs"></div>
+  <div id="menuContent"></div>
+  <div class="cart-bar" id="cartBar">
+    <div class="cart-info">
+      <div class="cart-count"><span id="cartCount">0</span> ARTICLE(S)</div>
+      <div class="cart-total"><span id="cartTotal">0</span>€</div>
+    </div>
+    <button class="btn-cart" onclick="showCart()">MON PANIER →</button>
+  </div>
+</div>
+
+<!-- ══ CART ══ -->
+<div id="view-cart" class="view">
+  <div class="cart-header">
+    <button class="back-btn" onclick="showView('menu')">←</button>
+    <h2>MON PANIER</h2>
+    <div class="table-badge" id="cartTableBadge">TABLE —</div>
+  </div>
+  <div class="cart-items" id="cartItemsList"></div>
+  <div class="cart-total-block">
+    <div class="total-line"><span>SOUS-TOTAL</span><span id="cartSubtotal">0€</span></div>
+    <div class="total-line main"><span>TOTAL</span><span id="cartFinalTotal">0€</span></div>
+  </div>
+  <div class="note-section">
+    <div class="note-label">💬 NOTE / ALLERGIES</div>
+    <textarea id="orderNote" rows="3" placeholder="Ex: sans gluten, allergie aux noix..."></textarea>
+  </div>
+  <div class="confirm-btn-wrap">
+    <button class="btn-gold" id="sendOrderBtn" onclick="confirmOrder()">✓ ENVOYER MA COMMANDE</button>
+  </div>
+</div>
+
+<!-- ══ SUCCESS ══ -->
+<div id="view-success" class="view">
+  <div class="success-icon">✅</div>
+  <h2>COMMANDE<br>ENVOYÉE !</h2>
+  <p>Votre commande a été transmise<br>directement à notre équipe.<br>Nous vous servons très vite !</p>
+  <div class="order-num">
+    <div class="label">COMMANDE N°</div>
+    <div class="num" id="orderNum">#001</div>
+  </div>
+  <button class="btn-gold" onclick="newOrder()" style="max-width:300px;width:100%">+ AJOUTER D'AUTRES ARTICLES</button>
+</div>
+
+<script>
+const SUPABASE_URL='https://maqtghwrzztscibzrbeh.supabase.co';
+const SUPABASE_KEY='sb_publishable_OnTJml3M6Y2ouPqYAj_W6A_U19BOQSZ';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+// ════════════════════════════
+// MENU DATA
+// ════════════════════════════
+const PARFUMS_HOOKAH=[
+  'Menthe','Mi Amor','Hawaï Love66','African Queen',
+  'Menthe Sucrée (+5€)','Water Melon (+5€)'
+];
+
+const MENU=[
+  {id:'entrees',label:'ENTRÉES',title:'ENTRÉES',items:[
+    {id:'bur',name:'BURRATA',desc:'Fromage italien, tomates, balsamiques',price:12},
+    {id:'car',name:'CARPACCIO',desc:'Fines tranches de bœuf, parmesan (supp. Buratta 6€)',price:11},
+    {id:'foi',name:'FOIE GRAS',desc:'Foie gras de canard, confiture de figues, toasts',price:14},
+  ]},
+  {id:'plats',label:'PLATS',title:'PLATS',sub:'SERVIS AVEC ACCOMPAGNEMENT AU CHOIX',
+   extra:'⭐ SUPPLÉMENT GARNITURE 5€ — Frite maison, sauté de légumes, purée maison',items:[
+    {id:'esc',name:'ESCALOPE NORMANDE',desc:'Filet de poulet tendre, sauce forestière',price:17},
+    {id:'ent',name:'ENTRECÔTE',desc:'Belle pièce de bœuf grillée, servie avec sauce',price:25},
+    {id:'fil',name:'FILET DE BŒUF',desc:'Pièce de bœuf tendre et juteuse, servie avec sauce',price:26},
+    {id:'sal',name:'PAVÉ DE SAUMON',desc:'Crème de citron, sauce pesto',price:20},
+    {id:'carb',name:'PÂTES CARBONARA',desc:'Lardon, crème liquide, parmesan, œuf',price:15},
+    {id:'arr',name:'PÂTES PENNE ARRABBIATA',desc:'Sauce tomate épicée piquante, burrata',price:15},
+    {id:'forr',name:'PÂTE FORESTIÈRE',desc:'Poulet, champignons, crème liquide, parmesan',price:15},
+  ]},
+  {id:'desserts',label:'DESSERTS',title:'DESSERTS',items:[
+    {id:'tro',name:"TROMPE L'ŒIL",desc:'Selon arrivage',price:12},
+    {id:'pat',name:'PÂTISSERIE',desc:'Selon arrivage',price:10},
+    {id:'pai',name:'PAIN PERDU',desc:'Fruits rouges, chocolat ou caramel beurre salé',price:10},
+  ]},
+  {id:'boissons',label:'SOFTS',title:'BOISSONS',items:[
+    {id:'caf',name:'CAFÉ',desc:'',price:2},{id:'the2',name:'THÉ',desc:'',price:5},
+    {id:'evi',name:'EVIAN 50CL',desc:'',price:6},{id:'san',name:'SANPELLEGRINO 65CL',desc:'',price:6},
+    {id:'coc',name:'COCA 33CL',desc:'',price:6},{id:'coz',name:'COCA ZERO 33CL',desc:'',price:6},
+    {id:'cch',name:'COCA CHERRY 33CL',desc:'',price:6},{id:'ice',name:'ICE TEA 33CL',desc:'',price:6},
+    {id:'oas',name:'OASIS 33CL',desc:'',price:6},{id:'spr',name:'SPRITE 33CL',desc:'',price:6},
+    {id:'ora',name:'ORANGINA 25CL',desc:'',price:6},{id:'red',name:'REDBULL 25CL',desc:'',price:6},
+  ]},
+  {id:'jus',label:'JUS',title:'JUS',items:[
+    {id:'pom',name:'POMME',desc:'',price:5},{id:'jor',name:'ORANGE',desc:'',price:5},
+    {id:'jan',name:'ANANAS',desc:'',price:5},{id:'jpa',name:'PASSION',desc:'',price:5},
+    {id:'jcr',name:'CRANBERRY',desc:'',price:5},{id:'jma',name:'MANGUE',desc:'',price:5},
+  ]},
+  {id:'mocktails',label:'MOCKTAILS',title:'MOCKTAILS',items:[
+    {id:'vm',name:'VIRGIN MOJITO 33CL',desc:'Menthe, citron vert, sucre de canne, limonade',price:10},
+    {id:'cp',name:'COCO PINEAPPLE 50CL',desc:"Crème de coco, jus d'ananas, sucre de canne",price:10},
+    {id:'ps',name:'PORN STAR 25CL',desc:"Jus de passion, jus d'orange, sirop vanille",price:10},
+    {id:'rb',name:'RED BERRY 50CL',desc:'Cranberry, pomme, sirop myrtille, framboise',price:10},
+    {id:'lm',name:"LE MINT'S 50CL",desc:'Mangue, crème de coco, sirop cerise',price:10},
+    {id:'vir',name:"VIRIDIS' 50CL",desc:'Jus pomme, sirop banane, sirop kiwi',price:10},
+  ]},
+  {id:'cocktails',label:'COCKTAILS',title:'COCKTAILS',items:[
+    {id:'moj',name:'MOJITO 33CL',desc:'Menthe, citron vert, sucre de canne, rhum 6cl',price:12},
+    {id:'psc',name:'PORN STAR 20CL',desc:'Jus passion, liqueur passion 2cl, vodka 4cl',price:12},
+    {id:'teq',name:'TEQUILA SUNRISE 30CL',desc:"Tequila 5cl, jus d'orange, grenadine",price:12},
+    {id:'cos',name:'COSMOPOLITAN 30CL',desc:'Vodka 5cl, triple sec 2cl, cranberry, citron vert',price:12},
+    {id:'jc',name:'JACK CHARM 30CL',desc:"Jack Daniel's 4cl, triple sec 2cl, jus pomme",price:12},
+  ]},
+  {id:'alcool',label:'ALCOOL',title:'ALCOOL',items:[
+    {id:'wh',name:'VERRE DE WHISKY',desc:'',price:10},
+    {id:'vo',name:'VERRE DE VODKA',desc:'',price:10},
+    {id:'supcoc',name:'SUPPLÉMENT COCA / REDBULL',desc:'',price:2},
+    {id:'bv',name:'BOUTEILLE DE VIN',desc:'',price:40},
+    {id:'bc',name:'BOUTEILLE DE CHAMPAGNE',desc:'',price:80},
+  ]},
+  {id:'hookah',label:'HOOKAH 🌿',title:'HOOKAH',hookah:true,items:[
+    {id:'qhs',name:'QUASAR HOMME — SEMAINE',desc:'Hookah Homme en semaine',price:15},
+    {id:'qfs',name:'QUASAR FEMME — SEMAINE',desc:'Hookah Femme en semaine',price:10},
+    {id:'qhw',name:'QUASAR HOMME — WEEK-END',desc:'Hookah Homme le week-end',price:20},
+    {id:'qfw',name:'QUASAR FEMME — WEEK-END',desc:'Hookah Femme le week-end',price:15},
+  ]},
+];
+
+// ════════════════════════════
+// STATE
+// ════════════════════════════
+let selectedTable=null, cart={}, currentView='table', toastTimer=null;
+
+// ════════════════════════════
+// INIT
+// ════════════════════════════
+function init(){
+  buildMenu();
+  document.getElementById('confirmTable').onclick=()=>{
+    if(!selectedTable)return;
+    document.getElementById('menuTableLabel').textContent='📍 TABLE N°'+selectedTable;
+    document.getElementById('cartTableBadge').textContent='TABLE '+selectedTable;
+    showView('menu');
+    setTimeout(()=>scrollToSection('entrees', document.querySelector('.cat-tab')),50);
+  };
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&currentView==='table'&&selectedTable)
+      document.getElementById('confirmTable').click();
+  });
+}
+
+function onTableInput(el){
+  const val=parseInt(el.value);
+  const valid=!isNaN(val)&&val>=1&&val<=1000;
+  selectedTable=valid?val:null;
+  document.getElementById('confirmTable').disabled=!valid;
+}
+
+// ════════════════════════════
+// BUILD MENU
+// ════════════════════════════
+function buildMenu(){
+  const tabs=document.getElementById('catTabs');
+  const content=document.getElementById('menuContent');
+  tabs.innerHTML=''; content.innerHTML='';
+
+  MENU.forEach((cat,idx)=>{
+    // Tab
+    const tab=document.createElement('button');
+    tab.className='cat-tab'+(idx===0?' active':'');
+    tab.textContent=cat.label;
+    tab.dataset.target='sec-'+cat.id;
+    tab.onclick=()=>scrollToSection(cat.id, tab);
+    tabs.appendChild(tab);
+
+    // Section
+    const sec=document.createElement('div');
+    sec.id='sec-'+cat.id;
+    sec.className='menu-section';
+    sec.innerHTML=`
+      <div class="section-title">${cat.title}</div>
+      ${cat.sub?`<div class="section-sub">${cat.sub}</div>`:''}
+    `;
+
+    if(cat.hookah){
+      // Hookah avec sélection de parfum
+      cat.items.forEach(item=>sec.appendChild(buildHookahItem(item)));
+    } else {
+      cat.items.forEach(item=>sec.appendChild(buildMenuItem(item)));
+    }
+
+    if(cat.extra){
+      const e=document.createElement('div');
+      e.className='extra-note';e.textContent=cat.extra;
+      sec.appendChild(e);
+    }
+    content.appendChild(sec);
+
+    if(idx<MENU.length-1){
+      const div=document.createElement('div');
+      div.className='section-divider';
+      content.appendChild(div);
+    }
+  });
+
+  // Observer pour sync tabs au scroll
+  setupScrollSync();
+}
+
+function buildMenuItem(item){
+  const d=document.createElement('div');
+  d.className='menu-item';
+  const sn=item.name.replace(/'/g,'&#39;');
+  d.innerHTML=`
+    <div class="item-info">
+      <div class="item-name">${item.name}</div>
+      ${item.desc?`<div class="item-desc">${item.desc}</div>`:''}
+    </div>
+    <div class="item-price">${item.price}€</div>
+    <div id="ctrl-${item.id}">
+      <button class="add-btn" onclick="addItem('${item.id}','${sn}',${item.price})">+</button>
+    </div>
+  `;
+  return d;
+}
+
+function buildHookahItem(item){
+  const wrap=document.createElement('div');
+  wrap.className='hookah-item';
+  wrap.id='hookah-wrap-'+item.id;
+  wrap.innerHTML=`
+    <div class="hookah-head">
+      <div class="item-info">
+        <div class="item-name">${item.name}</div>
+        <div class="item-desc">${item.desc}</div>
+      </div>
+      <div class="item-price">${item.price}€</div>
+      <button class="hookah-toggle" onclick="toggleParfum('${item.id}')" title="Choisir un parfum">+</button>
+    </div>
+    <div class="parfum-panel" id="parfum-${item.id}">
+      <div class="parfum-title">CHOISIR UN PARFUM À AJOUTER</div>
+      <div class="parfum-grid">
+        ${PARFUMS_HOOKAH.map(p=>`
+          <button class="parfum-btn" onclick="addHookah('${item.id}','${item.name.replace(/'/g,"\\'")}',${item.price},'${p}')">
+            ${p}
+          </button>
+        `).join('')}
+      </div>
+      <div class="hookah-added-list" id="hal-${item.id}"></div>
+    </div>
+  `;
+  return wrap;
+}
+
+// ════════════════════════════
+// SCROLL SYNC NAV
+// ════════════════════════════
+function scrollToSection(catId, tab){
+  document.querySelectorAll('.cat-tab').forEach(t=>t.classList.remove('active'));
+  tab.classList.add('active');
+  const sec=document.getElementById('sec-'+catId);
+  if(!sec)return;
+  // Offset: header (68px) + tabs (48px) + marge
+  const offset=68+48+8;
+  const top=sec.getBoundingClientRect().top+window.scrollY-offset;
+  window.scrollTo({top,behavior:'smooth'});
+}
+
+function setupScrollSync(){
+  const sections=MENU.map(c=>document.getElementById('sec-'+c.id)).filter(Boolean);
+  const tabs=document.querySelectorAll('.cat-tab');
+  const offset=68+48+40;
+
+  const obs=new IntersectionObserver(entries=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        const id=entry.target.id.replace('sec-','');
+        tabs.forEach(t=>{
+          t.classList.toggle('active',t.dataset.target==='sec-'+id);
+        });
+        // Auto-scroll la tab active dans le nav
+        const activeTab=document.querySelector('.cat-tab.active');
+        if(activeTab)activeTab.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+      }
+    });
+  },{rootMargin:`-${offset}px 0px -50% 0px`,threshold:0});
+
+  sections.forEach(s=>obs.observe(s));
+}
+
+// ════════════════════════════
+// HOOKAH LOGIC — multi parfum
+// ════════════════════════════
+function toggleParfum(id){
+  const panel=document.getElementById('parfum-'+id);
+  const btn=document.querySelector(`#hookah-wrap-${id} .hookah-toggle`);
+  const open=panel.classList.toggle('open');
+  btn.classList.toggle('open',open);
+  btn.textContent=open?'−':'+';
+}
+
+function addHookah(id,name,price,parfum){
+  const extra=parfum.includes('+5€')?5:0;
+  const finalPrice=price+extra;
+  const displayParfum=parfum.replace(' (+5€)','');
+  const fullName=name+' — '+displayParfum+(extra?' +5€':'');
+
+  // Clé unique par hookah + parfum (timestamp pour permettre le même parfum x2)
+  const cartId='h_'+id+'_'+Date.now();
+  cart[cartId]={name:fullName,price:finalPrice,qty:1};
+
+  // Afficher dans la liste ajoutée sous les boutons
+  refreshHookahAdded(id);
+  updateCartBar();
+
+  // Feedback visuel sur le bouton parfum
+  const btns=document.querySelectorAll(`#parfum-${id} .parfum-btn`);
+  btns.forEach(b=>{
+    if(b.textContent.trim()===parfum){
+      b.classList.add('just-added');
+      setTimeout(()=>b.classList.remove('just-added'),500);
+    }
+  });
+}
+
+function refreshHookahAdded(id){
+  const list=document.getElementById('hal-'+id);
+  if(!list)return;
+  // Trouver tous les articles hookah de cet id dans le panier
+  const hookahItems=Object.entries(cart).filter(([k])=>k.startsWith('h_'+id+'_'));
+  if(!hookahItems.length){list.innerHTML='';return;}
+  list.innerHTML=`
+    <div class="hal-title">AJOUTÉ AU PANIER</div>
+    ${hookahItems.map(([k,v])=>`
+      <div class="hal-row">
+        <span class="hal-parfum">🌿 ${v.name.split(' — ')[1]||v.name}</span>
+        <div class="hal-right">
+          <span class="hal-price">${v.price}€</span>
+          <button class="hal-del" onclick="removeHookahLine('${id}','${k}')">✕</button>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function removeHookahLine(id,cartId){
+  delete cart[cartId];
+  refreshHookahAdded(id);
+  updateCartBar();
+}
+
+function hookahQty(id,delta){
+  const line=document.getElementById('hcl-'+id);
+  if(!line)return;
+  const cartId=line.dataset.cartId;
+  if(!cartId||!cart[cartId])return;
+  cart[cartId].qty+=delta;
+  if(cart[cartId].qty<=0){
+    delete cart[cartId];
+    line.style.display='none';
+    const panel=document.getElementById('parfum-'+id);
+    panel.querySelectorAll('.parfum-btn').forEach(b=>b.classList.remove('selected'));
+  } else {
+    document.getElementById('hcl-qty-'+id).textContent=cart[cartId].qty;
+  }
+  updateCartBar();
+}
+
+// ════════════════════════════
+// CART STANDARD
+// ════════════════════════════
+function addItem(id,name,price){
+  if(!cart[id])cart[id]={name,price,qty:0};
+  cart[id].qty++;
+  updateCtrl(id);
+  updateCartBar();
+}
+function removeItem(id){
+  if(!cart[id])return;
+  cart[id].qty--;
+  if(cart[id].qty<=0)delete cart[id];
+  updateCtrl(id);
+  updateCartBar();
+}
+function updateCtrl(id){
+  const el=document.getElementById('ctrl-'+id);if(!el)return;
+  const item=cart[id];
+  if(!item||item.qty===0){
+    const f=MENU.flatMap(c=>c.items).find(i=>i.id===id);
+    const sn=(f?.name||'').replace(/'/g,'&#39;');
+    el.innerHTML=`<button class="add-btn" onclick="addItem('${id}','${sn}',${f?.price||0})">+</button>`;
+  }else{
+    const sn=item.name.replace(/'/g,'&#39;');
+    el.innerHTML=`<div class="qty-control">
+      <button class="qty-btn" onclick="removeItem('${id}')">−</button>
+      <span class="qty-num">${item.qty}</span>
+      <button class="qty-btn" onclick="addItem('${id}','${sn}',${item.price})">+</button>
+    </div>`;
+  }
+}
+function updateCartBar(){
+  const items=Object.values(cart);
+  const count=items.reduce((s,i)=>s+i.qty,0);
+  const total=items.reduce((s,i)=>s+i.qty*i.price,0);
+  document.getElementById('cartCount').textContent=count;
+  document.getElementById('cartTotal').textContent=total;
+  document.getElementById('cartBar').classList.toggle('visible',count>0);
+}
+function showCart(){
+  const items=Object.values(cart);
+  const total=items.reduce((s,i)=>s+i.qty*i.price,0);
+  const keys=Object.keys(cart);
+  document.getElementById('cartItemsList').innerHTML=keys.map(key=>{
+    const i=cart[key];
+    const safeKey=key.replace(/'/g,'&#39;');
+    return `
+    <div class="cart-item">
+      <div class="cart-item-left">
+        <div class="cart-item-name">${i.name}</div>
+        <div class="cart-item-sub">${i.qty} × ${i.price}€</div>
+      </div>
+      <div class="cart-item-right">
+        <div class="cart-item-price">${i.qty*i.price}€</div>
+        <button class="delete-btn" onclick="removeFromCart('${safeKey}')">🗑</button>
+      </div>
+    </div>`}).join('');
+  document.getElementById('cartSubtotal').textContent=total+'€';
+  document.getElementById('cartFinalTotal').textContent=total+'€';
+  showView('cart');
+}
+
+function removeFromCart(key){
+  delete cart[key];
+  // Si hookah, refresh l'affichage du panneau concerné
+  if(key.startsWith('h_')){
+    const parts=key.split('_');
+    const hookahId=parts[1];
+    refreshHookahAdded(hookahId);
+  } else {
+    updateCtrl(key);
+  }
+  updateCartBar();
+  if(Object.keys(cart).length>0) showCart();
+  else showView('menu');
+}
+
+// ════════════════════════════
+// ENVOYER COMMANDE
+// ════════════════════════════
+async function confirmOrder(){
+  const items=Object.values(cart);if(!items.length)return;
+  const btn=document.getElementById('sendOrderBtn');
+  btn.disabled=true;btn.textContent='ENVOI EN COURS...';
+  showLoading('ENVOI DE LA COMMANDE...');
+  const total=items.reduce((s,i)=>s+i.qty*i.price,0);
+  const note=document.getElementById('orderNote').value.trim();
+  try{
+    const{data,error}=await sb.from('orders').insert({
+      table_number:selectedTable,
+      items:items.map(i=>({name:i.name,price:i.price,qty:i.qty})),
+      total,note,status:'pending'
+    }).select().single();
+    if(error)throw error;
+    hideLoading();
+    document.getElementById('orderNum').textContent='#'+String(data.order_number).padStart(3,'0');
+    // Reset
+    cart={};updateCartBar();
+    document.getElementById('menuContent').querySelectorAll('[id^=ctrl-]').forEach(el=>{
+      const id=el.id.replace('ctrl-','');
+      const f=MENU.flatMap(c=>c.items).find(i=>i.id===id);
+      if(f){const sn=f.name.replace(/'/g,'&#39;');el.innerHTML=`<button class="add-btn" onclick="addItem('${id}','${sn}',${f.price})">+</button>`;}
+    });
+    document.querySelectorAll('.hookah-added-list').forEach(l=>l.innerHTML='');
+    document.querySelectorAll('.parfum-panel').forEach(p=>p.classList.remove('open'));
+    document.querySelectorAll('.hookah-toggle').forEach(b=>{b.classList.remove('open');b.textContent='+';});
+    document.getElementById('orderNote').value='';
+    btn.disabled=false;btn.textContent='✓ ENVOYER MA COMMANDE';
+    showView('success');
+  }catch(err){
+    hideLoading();
+    showToast('❌ Erreur réseau. Réessayez.','error');
+    btn.disabled=false;btn.textContent='✓ ENVOYER MA COMMANDE';
+  }
+}
+function newOrder(){
+  showView('menu');
+  setTimeout(()=>scrollToSection('entrees', document.querySelector('.cat-tab')),50);
+}
+
+// ════════════════════════════
+// NAV & UTILS
+// ════════════════════════════
+function showView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  currentView=name;
+}
+function showLoading(){document.getElementById('loadingOverlay').classList.remove('hidden');}
+function hideLoading(){document.getElementById('loadingOverlay').classList.add('hidden');}
+function showToast(msg,type='success'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast'+(type==='error'?' error':'')+' show';
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+init();
+</script>
+</body>
+</html>
