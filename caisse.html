@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>The Palm - Caisse</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600&family=Montserrat:wght@300;400;500;600;700&display=swap');
+:root{
+  --dark:#0f0d1a;--dark2:#1a1730;--gold:#b8965a;--gold-light:#d4aa6e;
+  --purple:#6b3fa0;--green:#27ae60;--red:#e74c3c;--blue:#2e86c1;--orange:#e67e22;
+  --border:rgba(184,150,90,0.18);--card:rgba(255,255,255,0.04)
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Montserrat',sans-serif;background:var(--dark);color:white;min-height:100vh;overflow-x:hidden}
+
+/* HEADER */
+.header{background:linear-gradient(135deg,#0d0b18,#3a1f6b);padding:0 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);height:56px;flex-shrink:0;position:sticky;top:0;z-index:100}
+.header-logo{font-family:'Cormorant Garamond',serif;color:white;font-size:20px;font-weight:300;letter-spacing:3px;margin-right:auto}
+.header-logo span{color:var(--gold)}
+.nav-btn{padding:8px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:rgba(255,255,255,0.55);font-size:10px;font-weight:600;letter-spacing:1.5px;cursor:pointer;transition:all 0.2s;white-space:nowrap;font-family:'Montserrat',sans-serif}
+.nav-btn.active-tab{background:rgba(184,150,90,0.15);border-color:var(--gold);color:var(--gold)}
+.conn-dot{width:8px;height:8px;border-radius:50%;background:#4caf50;animation:blink 1.5s infinite;flex-shrink:0}
+.conn-dot.off{background:#ff5252;animation:none}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.25}}
+.logout-btn{background:none;border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.35);font-size:10px;letter-spacing:2px;padding:6px 12px;border-radius:8px;cursor:pointer;font-family:'Montserrat',sans-serif}
+.logout-btn:hover{color:white;border-color:rgba(255,255,255,0.4)}
+
+/* STATS BAR — cliquable */
+.stats-bar{display:flex;gap:8px;padding:10px 20px;background:rgba(0,0,0,0.2);border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0}
+.stats-bar::-webkit-scrollbar{display:none}
+.stat-pill{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:8px 16px;display:flex;align-items:center;gap:8px;flex-shrink:0;transition:all 0.2s}
+.stat-pill.clickable{cursor:pointer}
+.stat-pill.clickable:hover{border-color:rgba(184,150,90,0.5);background:rgba(184,150,90,0.08)}
+.stat-pill.active-filter{border-width:2px}
+.stat-pill .val{font-family:'Cormorant Garamond',serif;font-size:22px;line-height:1}
+.stat-pill .lbl{color:rgba(255,255,255,0.25);font-size:9px;letter-spacing:2px;white-space:nowrap}
+.stat-pill.s-orange .val{color:var(--orange)}
+.stat-pill.s-orange.active-filter{border-color:var(--orange);background:rgba(230,126,34,0.1)}
+.stat-pill.s-blue .val{color:#5dade2}
+.stat-pill.s-blue.active-filter{border-color:#5dade2;background:rgba(46,134,193,0.1)}
+.stat-pill.s-green .val{color:#58d68d}
+.stat-pill.s-green.active-filter{border-color:#58d68d;background:rgba(39,174,96,0.1)}
+
+/* PAGES */
+.page{display:none}
+.page.active{display:block}
+
+/* LISTE COMMANDES (vue filtrée) */
+.orders-section{padding:16px 20px}
+.section-title-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.section-title-bar h2{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;letter-spacing:3px}
+.section-title-bar h2.orange{color:var(--orange)}
+.section-title-bar h2.blue{color:#5dade2}
+.section-title-bar h2.green{color:#58d68d}
+.orders-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.empty-state{text-align:center;padding:80px 20px;color:rgba(255,255,255,0.12);grid-column:1/-1}
+.empty-state .icon{font-size:48px;margin-bottom:14px;opacity:0.4}
+.empty-state p{font-size:11px;letter-spacing:3px}
+
+/* ORDER CARD */
+.order-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;animation:slideUp 0.25s ease;cursor:pointer;transition:border-color 0.2s}
+.order-card:hover{border-color:rgba(184,150,90,0.5)}
+@keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.order-card.status-pending{border-left:3px solid var(--orange)}
+.order-card.status-preparing{border-left:3px solid var(--blue)}
+.order-card.status-ready{border-left:3px solid var(--green)}
+.order-card.urgent{box-shadow:0 0 0 1px rgba(255,152,0,0.3)}
+.oc-head{background:linear-gradient(135deg,rgba(107,63,160,0.3),rgba(184,150,90,0.05));padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
+.oc-table{font-family:'Cormorant Garamond',serif;font-size:18px;color:white}
+.oc-table span{color:var(--gold)}
+.oc-meta{text-align:right}
+.oc-time{color:rgba(255,255,255,0.35);font-size:9px;letter-spacing:1px}
+.oc-num{color:rgba(255,255,255,0.2);font-size:9px}
+.oc-items{padding:8px 14px}
+.oc-item{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.oc-item:last-child{border:none}
+.oc-item-name{color:rgba(255,255,255,0.78);font-size:11px}
+.oc-item-name.unavail{color:rgba(231,76,60,0.7);text-decoration:line-through}
+.oc-item-qty{background:rgba(184,150,90,0.14);color:var(--gold);font-size:10px;font-weight:700;padding:1px 7px;border-radius:8px}
+.oc-note{margin:0 14px 6px;padding:7px 10px;background:rgba(184,150,90,0.06);border-left:2px solid var(--gold);color:rgba(255,255,255,0.4);font-size:10px;font-style:italic;border-radius:0 6px 6px 0}
+.oc-foot{padding:8px 14px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border)}
+.oc-total{font-family:'Cormorant Garamond',serif;color:var(--gold);font-size:20px}
+.oc-action-hint{font-size:9px;color:rgba(255,255,255,0.2);letter-spacing:1px}
+
+/* MODAL DETAIL COMMANDE */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(12px);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.hidden{display:none}
+.modal{background:#1a1730;border:1px solid rgba(184,150,90,0.25);border-radius:20px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column}
+.modal-head{background:linear-gradient(135deg,#0d0b18,#3a1f6b);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+.modal-head h3{font-family:'Cormorant Garamond',serif;color:white;font-size:20px;font-weight:300;letter-spacing:2px}
+.modal-head-meta{display:flex;align-items:center;gap:10px}
+.modal-close{background:none;border:none;color:rgba(255,255,255,0.4);font-size:22px;cursor:pointer;padding:4px 8px}
+.modal-close:hover{color:white}
+.modal-body{padding:18px 20px}
+
+/* ITEMS EDITABLES dans modal */
+.modal-items-list{margin-bottom:16px}
+.modal-item-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;margin-bottom:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);transition:all 0.2s}
+.modal-item-row.unavail-row{background:rgba(231,76,60,0.06);border-color:rgba(231,76,60,0.2)}
+.modal-item-qty{background:rgba(184,150,90,0.14);color:var(--gold);font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;flex-shrink:0}
+.modal-item-name{flex:1;font-size:12px;color:rgba(255,255,255,0.85)}
+.modal-item-name.striked{text-decoration:line-through;color:rgba(231,76,60,0.6)}
+.modal-item-price{font-family:'Cormorant Garamond',serif;font-size:16px;color:rgba(255,255,255,0.4);flex-shrink:0}
+.btn-indispo{padding:5px 10px;border:1px solid rgba(231,76,60,0.4);background:rgba(231,76,60,0.08);color:#e74c3c;border-radius:7px;font-size:9px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Montserrat',sans-serif;transition:all 0.2s;flex-shrink:0}
+.btn-indispo:hover{background:rgba(231,76,60,0.2)}
+.btn-indispo.restore{border-color:rgba(39,174,96,0.4);background:rgba(39,174,96,0.08);color:#27ae60}
+.btn-remplacer{padding:5px 10px;border:1px solid rgba(184,150,90,0.4);background:rgba(184,150,90,0.08);color:var(--gold);border-radius:7px;font-size:9px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:'Montserrat',sans-serif;flex-shrink:0}
+
+/* SOUS-MODAL REMPLACEMENT */
+.replace-panel{background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:8px;display:none}
+.replace-panel.open{display:block}
+.replace-search{width:100%;padding:9px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:9px;color:white;font-family:'Montserrat',sans-serif;font-size:12px;outline:none;margin-bottom:10px}
+.replace-search:focus{border-color:var(--gold)}
+.replace-search::placeholder{color:rgba(255,255,255,0.25)}
+.replace-list{max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:5px}
+.replace-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:8px;cursor:pointer;transition:all 0.15s}
+.replace-item:hover{border-color:var(--gold);background:rgba(184,150,90,0.08)}
+.replace-item-name{font-size:11px;color:rgba(255,255,255,0.8)}
+.replace-item-price{font-family:'Cormorant Garamond',serif;color:var(--gold);font-size:15px}
+
+/* TOTAL + ACTIONS MODAL */
+.modal-total-bar{background:rgba(0,0,0,0.3);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.modal-total-bar .lbl{color:rgba(255,255,255,0.35);font-size:10px;letter-spacing:2px}
+.modal-total-bar .amt{font-family:'Cormorant Garamond',serif;color:var(--gold);font-size:28px}
+.modal-actions{display:flex;flex-direction:column;gap:8px}
+.paiement-label{color:rgba(255,255,255,0.35);font-size:10px;letter-spacing:3px;margin-bottom:8px}
+.paiement-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.pay-btn{padding:16px;border:2px solid rgba(255,255,255,0.1);border-radius:12px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.6);font-size:11px;font-weight:600;letter-spacing:1px;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:6px;font-family:'Montserrat',sans-serif}
+.pay-btn .icon{font-size:24px}
+.pay-btn:hover{border-color:var(--gold);color:white}
+.pay-btn.selected{border-color:var(--gold);background:rgba(184,150,90,0.15);color:var(--gold)}
+.btn-status{width:100%;padding:14px;border:none;border-radius:11px;font-size:11px;font-weight:700;letter-spacing:2px;cursor:pointer;transition:all 0.2s;font-family:'Montserrat',sans-serif;margin-bottom:6px}
+.btn-status:active{transform:scale(0.98)}
+.btn-preparing{background:linear-gradient(135deg,#1a5276,#2e86c1);color:white}
+.btn-ready{background:linear-gradient(135deg,#1e8449,#27ae60);color:white}
+.btn-valider{background:linear-gradient(135deg,var(--green),#2ecc71);color:white}
+.btn-valider:disabled{opacity:0.35;cursor:not-allowed}
+
+/* HISTORIQUE */
+.histo-header{padding:16px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.histo-header h3{font-family:'Cormorant Garamond',serif;color:white;font-size:20px;font-weight:300;letter-spacing:3px;margin-right:auto}
+.period-btn{padding:7px 14px;border:1px solid var(--border);background:var(--card);border-radius:10px;color:rgba(255,255,255,0.4);font-size:10px;font-weight:600;letter-spacing:2px;cursor:pointer;font-family:'Montserrat',sans-serif;transition:all 0.2s}
+.period-btn.active{border-color:var(--gold);color:var(--gold);background:rgba(184,150,90,0.1)}
+.histo-summary{display:flex;gap:10px;padding:12px 20px;border-bottom:1px solid var(--border)}
+.hs-pill{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;flex:1;text-align:center}
+.hs-pill .v{font-family:'Cormorant Garamond',serif;color:var(--gold);font-size:20px}
+.hs-pill .l{color:rgba(255,255,255,0.25);font-size:9px;letter-spacing:2px}
+.histo-list{padding:14px 20px}
+.histo-item{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:border-color 0.2s}
+.histo-item:hover{border-color:rgba(184,150,90,0.4)}
+.hi-num{font-family:'Cormorant Garamond',serif;color:var(--gold);font-size:20px;min-width:48px}
+.hi-info{flex:1}
+.hi-table{color:white;font-size:12px;font-weight:600;margin-bottom:3px}
+.hi-time{color:rgba(255,255,255,0.3);font-size:10px}
+.hi-total{font-family:'Cormorant Garamond',serif;color:var(--gold);font-size:20px;text-align:right}
+.hi-mode{font-size:10px;letter-spacing:1px;padding:3px 10px;border-radius:6px;text-align:center;margin-top:4px}
+.hi-mode.carte{background:rgba(52,152,219,0.15);color:#5dade2}
+.hi-mode.especes{background:rgba(39,174,96,0.15);color:#58d68d}
+
+/* TICKET PRINT */
+@media print{body>*{display:none!important}#ticket-caisse{display:block!important}#ticket-cuisine{display:block!important}}
+#ticket-caisse,#ticket-cuisine{display:none;font-family:'Courier New',monospace;width:280px;padding:10px;color:#000}
+.t-center{text-align:center}.t-bold{font-weight:bold}
+.t-line{border-top:1px dashed #000;margin:6px 0}
+.t-row{display:flex;justify-content:space-between;font-size:12px;padding:2px 0}
+.t-big{font-size:15px;font-weight:bold}
+.t-item-cuisine{font-size:16px;font-weight:bold;padding:5px 0;border-bottom:1px dotted #999;display:flex;gap:10px}
+.t-qty-cuisine{font-size:20px;font-weight:900;min-width:30px}
+
+/* TOAST & LOADING */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:linear-gradient(135deg,#219a52,#27ae60);color:white;padding:12px 22px;border-radius:12px;font-size:12px;font-weight:600;letter-spacing:1px;z-index:9999;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);box-shadow:0 8px 24px rgba(0,0,0,0.5);max-width:88vw;text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.error{background:linear-gradient(135deg,#c0392b,#e74c3c)}
+.toast.info{background:linear-gradient(135deg,#1a5276,#2e86c1)}
+.loading-overlay{position:fixed;inset:0;background:rgba(15,13,26,0.85);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9000;transition:opacity 0.3s}
+.loading-overlay.hidden{opacity:0;pointer-events:none}
+.spinner{width:44px;height:44px;border:3px solid rgba(184,150,90,0.2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-overlay p{color:rgba(255,255,255,0.4);font-size:10px;letter-spacing:3px}
+</style>
+</head>
+<body>
+
+<div id="ticket-caisse"></div>
+<div id="ticket-cuisine"></div>
+<div class="loading-overlay hidden" id="loadingOverlay"><div class="spinner"></div><p id="loadingText">CHARGEMENT...</p></div>
+<div class="toast" id="toast"></div>
+
+<!-- MODAL DETAIL / PAIEMENT -->
+<div class="modal-overlay hidden" id="orderModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">TABLE #—</h3>
+      <div class="modal-head-meta">
+        <span id="modalNum" style="color:rgba(255,255,255,0.3);font-size:11px;letter-spacing:1px"></span>
+        <button class="modal-close" onclick="closeModal()">x</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="modal-items-list" id="modalItemsList"></div>
+      <div id="replacePanelWrap"></div>
+      <div class="modal-total-bar">
+        <div class="lbl">TOTAL</div>
+        <div class="amt" id="modalTotal">0</div>
+      </div>
+      <div class="modal-actions" id="modalActions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div style="display:flex;flex-direction:column;min-height:100vh">
+  <div class="header">
+    <div class="header-logo">THE <span>PALM</span></div>
+    <button class="nav-btn active-tab" id="tabCommandes" onclick="switchTab('commandes')">EN COURS</button>
+    <button class="nav-btn" id="tabHistorique" onclick="switchTab('historique')">HISTORIQUE</button>
+    <div class="conn-dot" id="connDot"></div>
+    <button class="logout-btn" onclick="location.reload()">QUITTER</button>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-pill s-orange clickable active-filter" id="pillPending" onclick="setFilter('pending')">
+      <div class="val" id="statPending">0</div><div class="lbl">EN ATTENTE</div>
+    </div>
+    <div class="stat-pill s-blue clickable" id="pillPreparing" onclick="setFilter('preparing')">
+      <div class="val" id="statPreparing">0</div><div class="lbl">EN PREPA</div>
+    </div>
+    <div class="stat-pill s-green clickable" id="pillReady" onclick="setFilter('ready')">
+      <div class="val" id="statReady">0</div><div class="lbl">PRETES</div>
+    </div>
+    <div class="stat-pill">
+      <div class="val" id="statToday">0</div><div class="lbl">COMMANDES</div>
+    </div>
+    <div class="stat-pill">
+      <div class="val" id="statCA">0</div><div class="lbl">CA DU JOUR</div>
+    </div>
+  </div>
+
+  <div class="page active" id="pageCommandes">
+    <div class="orders-section">
+      <div class="section-title-bar">
+        <h2 id="filterTitle" class="orange">EN ATTENTE</h2>
+      </div>
+      <div class="orders-grid" id="ordersGrid"></div>
+    </div>
+  </div>
+
+  <div class="page" id="pageHistorique">
+    <div class="histo-header">
+      <h3>HISTORIQUE</h3>
+      <button class="period-btn active" id="btnAujourd" onclick="setPeriod('today')">AUJOURD'HUI</button>
+      <button class="period-btn" id="btn7j" onclick="setPeriod('7days')">7 JOURS</button>
+    </div>
+    <div class="histo-summary">
+      <div class="hs-pill"><div class="v" id="hsTotalCmd">0</div><div class="l">COMMANDES</div></div>
+      <div class="hs-pill"><div class="v" id="hsTotalCA">0</div><div class="l">CA TOTAL</div></div>
+      <div class="hs-pill"><div class="v" id="hsMoy">0</div><div class="l">MOYENNE</div></div>
+    </div>
+    <div class="histo-list" id="histoList"></div>
+  </div>
+</div>
+
+<script>
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let allOrders = [], channel = null, currentOrder = null, selectedPayMode = null;
+let histoPeriod = 'today', toastTimer = null, currentFilter = 'pending';
+let unavailableItems = new Set();
+let replacingItemIdx = null;
+
+// ── INIT ──
+async function init() {
+  showLoading('CONNEXION...');
+  await loadUnavailable();
+  await loadOrders();
+  await loadStats();
+  startRealtime();
+  hideLoading();
+}
+
+// ── ARTICLES INDISPONIBLES ──
+async function loadUnavailable() {
+  const {data} = await sb.from('unavailable_items').select('id');
+  unavailableItems = new Set((data||[]).map(r => r.id));
+}
+
+async function toggleUnavailable(itemId, itemName) {
+  if (unavailableItems.has(itemId)) {
+    await sb.from('unavailable_items').delete().eq('id', itemId);
+    unavailableItems.delete(itemId);
+    showToast(itemName + ' remis en stock', 'success');
+  } else {
+    await sb.from('unavailable_items').insert({id: itemId, name: itemName});
+    unavailableItems.add(itemId);
+    showToast(itemName + ' marque indisponible', 'info');
+  }
+}
+
+// ── DATA ──
+async function loadOrders() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const {data, error} = await sb.from('orders').select('*')
+    .in('status', ['pending','preparing','ready'])
+    .gte('created_at', today.toISOString())
+    .order('created_at', {ascending: true});
+  if (!error) { allOrders = data || []; renderOrders(); }
+  setConn(!error);
+}
+
+async function loadStats() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const {data} = await sb.from('orders').select('total,status').gte('created_at', today.toISOString());
+  const all = data || [];
+  const np = all.filter(o => o.status === 'pending').length;
+  const nprep = all.filter(o => o.status === 'preparing').length;
+  const nr = all.filter(o => o.status === 'ready').length;
+  document.getElementById('statPending').textContent = np;
+  document.getElementById('statPreparing').textContent = nprep;
+  document.getElementById('statReady').textContent = nr;
+  document.getElementById('statToday').textContent = all.length;
+  document.getElementById('statCA').textContent = all.filter(o => o.status === 'done').reduce((s,o) => s+(o.total||0), 0) + 'EUR';
+}
+
+// ── REALTIME ──
+function startRealtime() {
+  if (channel) { channel.unsubscribe(); channel = null; }
+  channel = sb.channel('caisse-v3-' + Date.now())
+    .on('postgres_changes', {event: 'INSERT', schema: 'public', table: 'orders'}, p => {
+      const o = p.new;
+      if (['pending','preparing','ready'].includes(o.status) && !allOrders.find(x => x.id === o.id)) {
+        allOrders.push(o);
+        playNotif();
+        showToast('NOUVELLE COMMANDE TABLE ' + o.table_number);
+        renderOrders(); loadStats();
+      }
+    })
+    .on('postgres_changes', {event: 'UPDATE', schema: 'public', table: 'orders'}, p => {
+      const o = p.new;
+      const idx = allOrders.findIndex(x => x.id === o.id);
+      if (o.status === 'done') {
+        if (idx >= 0) allOrders.splice(idx, 1);
+      } else if (['pending','preparing','ready'].includes(o.status)) {
+        if (idx >= 0) allOrders[idx] = o; else allOrders.push(o);
+      } else {
+        if (idx >= 0) allOrders.splice(idx, 1);
+      }
+      renderOrders(); loadStats();
+    })
+    .subscribe(s => {
+      setConn(s === 'SUBSCRIBED');
+      if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT') setTimeout(startRealtime, 3000);
+    });
+}
+
+function setConn(ok) {
+  const d = document.getElementById('connDot');
+  if (d) d.className = 'conn-dot' + (ok ? '' : ' off');
+}
+
+// ── FILTRE ──
+function setFilter(f) {
+  currentFilter = f;
+  ['pending','preparing','ready'].forEach(s => {
+    document.getElementById('pill' + s.charAt(0).toUpperCase() + s.slice(1)).classList.toggle('active-filter', s === f);
+  });
+  const labels = {pending: 'EN ATTENTE', preparing: 'EN PREPARATION', ready: 'PRETES'};
+  const colors = {pending: 'orange', preparing: 'blue', ready: 'green'};
+  const titleEl = document.getElementById('filterTitle');
+  titleEl.textContent = labels[f];
+  titleEl.className = colors[f];
+  renderOrders();
+}
+
+// ── RENDER ──
+function renderOrders() {
+  const filtered = allOrders.filter(o => o.status === currentFilter);
+  const grid = document.getElementById('ordersGrid');
+  if (!filtered.length) {
+    grid.innerHTML = '<div class="empty-state"><div class="icon">🔔</div><p>AUCUNE COMMANDE</p></div>';
+    return;
+  }
+  grid.innerHTML = filtered.map(o => renderCard(o)).join('');
+}
+
+function renderCard(o) {
+  const items = Array.isArray(o.items) ? o.items : [];
+  const t = new Date(o.created_at).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  const num = '#' + String(o.order_number).padStart(3, '0');
+  const age = (Date.now() - new Date(o.created_at).getTime()) / 60000;
+  const hasUnavail = items.some(i => unavailableItems.has(i.id));
+
+  return `<div class="order-card status-${o.status}${age>10&&o.status==='pending'?' urgent':''}" onclick="openOrderModal('${o.id}')">
+    <div class="oc-head">
+      <div class="oc-table">TABLE <span>#${o.table_number}</span></div>
+      <div class="oc-meta">
+        <div class="oc-time">${t}${age>10&&o.status==='pending'?' ⚠':''}</div>
+        <div class="oc-num">${num}</div>
+      </div>
+    </div>
+    <div class="oc-items">
+      ${items.slice(0,4).map(i => `
+        <div class="oc-item">
+          <span class="oc-item-name${unavailableItems.has(i.id)?' unavail':''}">${i.name}</span>
+          <span class="oc-item-qty">x${i.qty}</span>
+        </div>`).join('')}
+      ${items.length > 4 ? `<div class="oc-item"><span style="color:rgba(255,255,255,0.3);font-size:10px">+ ${items.length-4} autres articles</span></div>` : ''}
+    </div>
+    ${o.note ? `<div class="oc-note">${o.note}</div>` : ''}
+    ${hasUnavail ? `<div style="padding:4px 14px 8px;font-size:10px;color:#e74c3c;letter-spacing:1px">⚠ ARTICLE(S) INDISPONIBLE(S)</div>` : ''}
+    <div class="oc-foot">
+      <div class="oc-total">${o.total}EUR</div>
+      <div class="oc-action-hint">APPUYER POUR DETAILS →</div>
+    </div>
+  </div>`;
+}
+
+// ── MODAL DETAIL ──
+function openOrderModal(id) {
+  currentOrder = allOrders.find(o => o.id === id);
+  if (!currentOrder) return;
+  selectedPayMode = null;
+  replacingItemIdx = null;
+  renderModal();
+  document.getElementById('orderModal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('orderModal').classList.add('hidden');
+  currentOrder = null; selectedPayMode = null; replacingItemIdx = null;
+}
+
+function renderModal() {
+  if (!currentOrder) return;
+  const items = Array.isArray(currentOrder.items) ? currentOrder.items : [];
+  const num = '#' + String(currentOrder.order_number).padStart(3, '0');
+
+  document.getElementById('modalTitle').textContent = 'TABLE #' + currentOrder.table_number;
+  document.getElementById('modalNum').textContent = num;
+
+  // ITEMS avec boutons indispo + remplacer
+  document.getElementById('modalItemsList').innerHTML = items.map((item, idx) => {
+    const isUnavail = unavailableItems.has(item.id);
+    return `<div class="modal-item-row${isUnavail?' unavail-row':''}">
+      <span class="modal-item-qty">x${item.qty}</span>
+      <span class="modal-item-name${isUnavail?' striked':''}">${item.name}</span>
+      <span class="modal-item-price">${item.price}EUR</span>
+      <button class="btn-indispo${isUnavail?' restore':''}" onclick="handleIndispo(${idx})">
+        ${isUnavail ? 'REMETTRE' : 'INDISPO'}
+      </button>
+      ${isUnavail ? `<button class="btn-remplacer" onclick="openReplace(${idx})">REMPLACER</button>` : ''}
+    </div>`;
+  }).join('');
+
+  // Panneau remplacement
+  document.getElementById('replacePanelWrap').innerHTML = `
+    <div class="replace-panel" id="replacePanel">
+      <input class="replace-search" id="replaceSearch" placeholder="Rechercher un article..." oninput="filterReplaceList()">
+      <div class="replace-list" id="replaceList"></div>
+    </div>`;
+
+  // Total
+  document.getElementById('modalTotal').textContent = currentOrder.total + 'EUR';
+
+  // Actions selon statut
+  let actionsHtml = '';
+  if (currentOrder.status === 'pending') {
+    actionsHtml = `<button class="btn-status btn-preparing" onclick="doSetStatus('preparing')">DEMARRER LA PREPARATION</button>`;
+  } else if (currentOrder.status === 'preparing') {
+    actionsHtml = `<button class="btn-status btn-ready" onclick="doSetStatus('ready')">MARQUER COMME PRETE</button>`;
+  } else if (currentOrder.status === 'ready') {
+    actionsHtml = `
+      <div class="paiement-label">MODE DE PAIEMENT</div>
+      <div class="paiement-btns">
+        <button class="pay-btn" id="mBtnCarte" onclick="selectPay('carte')"><span class="icon">💳</span>CARTE</button>
+        <button class="pay-btn" id="mBtnEspeces" onclick="selectPay('especes')"><span class="icon">💵</span>ESPECES</button>
+      </div>
+      <button class="btn-status btn-valider" id="btnValider" onclick="validerPaiement()" disabled>VALIDER ET IMPRIMER</button>
+    `;
+  }
+  document.getElementById('modalActions').innerHTML = actionsHtml;
+}
+
+// ── INDISPO / REMPLACER ──
+async function handleIndispo(idx) {
+  const items = Array.isArray(currentOrder.items) ? currentOrder.items : [];
+  const item = items[idx];
+  await toggleUnavailable(item.id, item.name);
+  renderModal();
+  renderOrders();
+}
+
+function openReplace(idx) {
+  replacingItemIdx = idx;
+  const panel = document.getElementById('replacePanel');
+  panel.classList.add('open');
+  document.getElementById('replaceSearch').value = '';
+  filterReplaceList();
+}
+
+function filterReplaceList() {
+  const q = document.getElementById('replaceSearch').value.toLowerCase();
+  const all = getAllItems();
+  const filtered = all.filter(i => !unavailableItems.has(i.id) && (!q || i.name.toLowerCase().includes(q)));
+  document.getElementById('replaceList').innerHTML = filtered.slice(0, 20).map(i =>
+    `<div class="replace-item" onclick="doReplace('${i.id}','${i.name.replace(/'/g,"\\'")}',${i.price})">
+      <span class="replace-item-name">${i.name}</span>
+      <span class="replace-item-price">${i.price}EUR</span>
+    </div>`
+  ).join('') || '<div style="color:rgba(255,255,255,0.3);font-size:11px;padding:8px">Aucun resultat</div>';
+}
+
+async function doReplace(newId, newName, newPrice) {
+  if (replacingItemIdx === null) return;
+  const items = JSON.parse(JSON.stringify(currentOrder.items));
+  const oldItem = items[replacingItemIdx];
+  const oldTotal = currentOrder.total;
+  const newTotal = oldTotal - (oldItem.price * oldItem.qty) + (newPrice * oldItem.qty);
+
+  items[replacingItemIdx] = {id: newId, name: newName, price: newPrice, qty: oldItem.qty};
+
+  try {
+    const {error} = await sb.from('orders').update({items, total: newTotal}).eq('id', currentOrder.id);
+    if (error) throw error;
+    currentOrder.items = items;
+    currentOrder.total = newTotal;
+    // Remettre l'ancien en stock si besoin
+    if (unavailableItems.has(oldItem.id)) {
+      await sb.from('unavailable_items').delete().eq('id', oldItem.id);
+      unavailableItems.delete(oldItem.id);
+    }
+    replacingItemIdx = null;
+    showToast(oldItem.name + ' remplace par ' + newName, 'success');
+    renderModal();
+    renderOrders();
+  } catch(e) {
+    showToast('Erreur lors du remplacement', 'error');
+  }
+}
+
+// ── STATUS ──
+async function doSetStatus(newStatus) {
+  if (!currentOrder) return;
+  try {
+    const {error} = await sb.from('orders').update({status: newStatus}).eq('id', currentOrder.id);
+    if (error) throw error;
+    if (newStatus === 'preparing') {
+      imprimerTicketCuisine(currentOrder);
+      showToast('EN PREPARATION — Ticket cuisine imprime', 'info');
+    } else if (newStatus === 'ready') {
+      showToast('COMMANDE PRETE TABLE #' + currentOrder.table_number);
+      playNotif();
+    }
+    currentOrder.status = newStatus;
+    closeModal();
+  } catch(e) {
+    showToast('Erreur. Reessayez.', 'error');
+  }
+}
+
+// ── PAIEMENT ──
+function selectPay(mode) {
+  selectedPayMode = mode;
+  const bc = document.getElementById('mBtnCarte');
+  const be = document.getElementById('mBtnEspeces');
+  if (bc) bc.classList.toggle('selected', mode === 'carte');
+  if (be) be.classList.toggle('selected', mode === 'especes');
+  const bv = document.getElementById('btnValider');
+  if (bv) bv.disabled = false;
+}
+
+async function validerPaiement() {
+  if (!currentOrder || !selectedPayMode) return;
+  const btn = document.getElementById('btnValider');
+  if (btn) { btn.disabled = true; btn.textContent = 'VALIDATION...'; }
+  try {
+    const {error} = await sb.from('orders').update({status: 'done', payment_method: selectedPayMode}).eq('id', currentOrder.id);
+    if (error) throw error;
+    imprimerTicketCaisse(currentOrder, selectedPayMode);
+    closeModal();
+    loadStats();
+    showToast('Commande reglee ' + selectedPayMode.toUpperCase());
+    if (histoPeriod) loadHistorique();
+  } catch(e) {
+    showToast('Erreur. Reessayez.', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'VALIDER ET IMPRIMER'; }
+  }
+}
+
+// ── TICKETS ──
+function imprimerTicketCuisine(order) {
+  const items = Array.isArray(order.items) ? order.items : [];
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  const num = '#' + String(order.order_number).padStart(3, '0');
+  document.getElementById('ticket-caisse').innerHTML = '';
+  document.getElementById('ticket-cuisine').innerHTML = `
+    <div class="t-center t-bold" style="font-size:18px;letter-spacing:4px">-- CUISINE --</div>
+    <div class="t-line"></div>
+    <div class="t-center t-bold" style="font-size:30px">TABLE #${order.table_number}</div>
+    <div class="t-center" style="font-size:12px">${num} | ${timeStr}</div>
+    <div class="t-line"></div>
+    ${items.map(i => `<div class="t-item-cuisine"><span class="t-qty-cuisine">${i.qty}x</span><span>${i.name}</span></div>`).join('')}
+    <div class="t-line"></div>
+    ${order.note ? `<div style="font-size:11px;font-style:italic">NOTE: ${order.note}</div>` : ''}
+    <br><br><br>`;
+  window.print();
+}
+
+function imprimerTicketCaisse(order, mode) {
+  const items = Array.isArray(order.items) ? order.items : [];
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('fr-FR');
+  const timeStr = now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+  const num = '#' + String(order.order_number).padStart(3, '0');
+  const modeStr = mode === 'carte' ? 'CARTE BANCAIRE' : 'ESPECES';
+  document.getElementById('ticket-cuisine').innerHTML = '';
+  document.getElementById('ticket-caisse').innerHTML = `
+    <div class="t-center t-bold" style="font-size:16px;letter-spacing:2px">THE PALM</div>
+    <div class="t-center" style="font-size:10px">RESTAURANT & LOUNGE</div>
+    <div class="t-line"></div>
+    <div class="t-center">TABLE N${order.table_number} ${num}</div>
+    <div class="t-center" style="font-size:10px">${dateStr} ${timeStr}</div>
+    <div class="t-line"></div>
+    ${items.map(i => `<div class="t-row"><span>${i.qty}x ${i.name}</span><span>${i.qty*i.price}EUR</span></div>`).join('')}
+    <div class="t-line"></div>
+    <div class="t-row t-bold t-big"><span>TOTAL</span><span>${order.total}EUR</span></div>
+    <div class="t-line"></div>
+    <div class="t-center" style="font-size:10px">${modeStr}</div>
+    <div class="t-line"></div>
+    <div class="t-center" style="font-size:10px">Merci de votre visite !</div>
+    <br><br><br>`;
+  window.print();
+}
+
+// ── HISTORIQUE ──
+function switchTab(tab) {
+  document.getElementById('pageCommandes').classList.toggle('active', tab === 'commandes');
+  document.getElementById('pageHistorique').classList.toggle('active', tab === 'historique');
+  document.getElementById('tabCommandes').classList.toggle('active-tab', tab === 'commandes');
+  document.getElementById('tabHistorique').classList.toggle('active-tab', tab === 'historique');
+  if (tab === 'historique') loadHistorique();
+}
+
+function setPeriod(p) {
+  histoPeriod = p;
+  document.getElementById('btnAujourd').classList.toggle('active', p === 'today');
+  document.getElementById('btn7j').classList.toggle('active', p === '7days');
+  loadHistorique();
+}
+
+async function loadHistorique() {
+  const from = new Date();
+  if (histoPeriod === 'today') from.setHours(0,0,0,0);
+  else from.setDate(from.getDate() - 7);
+  const {data, error} = await sb.from('orders').select('*').eq('status','done').gte('created_at', from.toISOString()).order('created_at', {ascending: false});
+  if (error || !data) return;
+  const total = data.reduce((s,o) => s+(o.total||0), 0);
+  const moy = data.length ? Math.round(total/data.length) : 0;
+  document.getElementById('hsTotalCmd').textContent = data.length;
+  document.getElementById('hsTotalCA').textContent = total + 'EUR';
+  document.getElementById('hsMoy').textContent = moy + 'EUR';
+  const list = document.getElementById('histoList');
+  if (!data.length) { list.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.2);padding:40px;font-size:12px;letter-spacing:2px">AUCUNE COMMANDE</div>'; return; }
+  list.innerHTML = data.map(o => {
+    const t = new Date(o.created_at).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    const d = new Date(o.created_at).toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit'});
+    const num = '#' + String(o.order_number).padStart(3,'0');
+    const mode = o.payment_method || '';
+    return `<div class="histo-item" onclick="reimprimerTicket('${o.id}')">
+      <div class="hi-num">${num}</div>
+      <div class="hi-info"><div class="hi-table">TABLE #${o.table_number}</div><div class="hi-time">${d} a ${t}</div></div>
+      <div>
+        <div class="hi-total">${o.total}EUR</div>
+        ${mode ? `<div class="hi-mode ${mode}">${mode==='carte'?'CARTE':'ESPECES'}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function reimprimerTicket(id) {
+  const {data, error} = await sb.from('orders').select('*').eq('id', id).single();
+  if (!error && data) imprimerTicketCaisse(data, data.payment_method || '');
+}
+
+// ── UTILS ──
+function playNotif() {
+  try {
+    const ctx = new AudioContext();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.setValueAtTime(880, ctx.currentTime);
+    o.frequency.setValueAtTime(1100, ctx.currentTime + 0.12);
+    g.gain.setValueAtTime(0.35, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.5);
+  } catch(e) {}
+}
+function showLoading(t) { document.getElementById('loadingText').textContent = t||'...'; document.getElementById('loadingOverlay').classList.remove('hidden'); }
+function hideLoading() { document.getElementById('loadingOverlay').classList.add('hidden'); }
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast' + (type==='error'?' error':type==='info'?' info':'') + ' show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+init();
+</script>
+</body>
+</html>
