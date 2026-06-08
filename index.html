@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>The Palm – Commander</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Montserrat:wght@300;400;500;600;700&display=swap');
+:root{--cream:#f0ebe0;--dark:#2a1f14;--gold:#b8965a;--gold-light:#d4aa6e;--purple:#6b3fa0;--text:#3d2e1e;--border:rgba(184,150,90,0.3)}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Montserrat',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;overflow-x:hidden}
+.view{display:none}.view.active{display:block}
+
+/* TABLE */
+#view-table{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(160deg,#2a1f14 0%,#6b3fa0 60%,#2a1f14 100%);padding:40px 20px}
+#view-table.active{display:flex}
+.palm-logo{text-align:center;margin-bottom:50px}
+.palm-logo .subtitle{color:var(--gold);font-size:11px;letter-spacing:5px;font-weight:300;margin-bottom:8px}
+.palm-logo h1{font-family:'Cormorant Garamond',serif;font-size:54px;font-weight:300;color:white;letter-spacing:8px;line-height:1}
+.palm-logo .lounge{color:var(--gold-light);font-size:13px;letter-spacing:6px;font-weight:300;margin-top:6px}
+.table-card{background:rgba(255,255,255,0.07);backdrop-filter:blur(20px);border:1px solid rgba(184,150,90,0.3);border-radius:20px;padding:40px;width:100%;max-width:400px;text-align:center}
+.table-card h2{font-family:'Cormorant Garamond',serif;color:white;font-size:26px;font-weight:300;margin-bottom:8px}
+.table-card p{color:rgba(255,255,255,0.45);font-size:11px;letter-spacing:1.5px;margin-bottom:36px}
+.table-input-wrap{position:relative;margin-bottom:28px}
+.table-input{width:100%;padding:20px;background:rgba(255,255,255,0.06);border:1px solid rgba(184,150,90,0.3);border-radius:14px;color:white;font-family:'Cormorant Garamond',serif;font-size:52px;font-weight:300;text-align:center;outline:none;transition:all 0.25s;letter-spacing:4px;-moz-appearance:textfield}
+.table-input::-webkit-inner-spin-button,.table-input::-webkit-outer-spin-button{-webkit-appearance:none}
+.table-input:focus{border-color:var(--gold);background:rgba(184,150,90,0.08);box-shadow:0 0 0 3px rgba(184,150,90,0.12)}
+.table-input::placeholder{color:rgba(255,255,255,0.12);font-size:34px}
+.table-input-label{position:absolute;top:-10px;left:18px;background:rgba(107,63,160,0.9);color:var(--gold);font-size:9px;letter-spacing:3px;padding:2px 10px;border-radius:4px}
+.btn-gold{width:100%;padding:16px;background:linear-gradient(135deg,var(--gold),var(--gold-light));border:none;border-radius:12px;color:var(--dark);font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;letter-spacing:3px;cursor:pointer;transition:all 0.2s}
+.btn-gold:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(184,150,90,0.4)}
+.btn-gold:disabled{opacity:0.35;cursor:not-allowed;transform:none}
+
+/* MENU */
+#view-menu{background:var(--cream);min-height:100vh;padding-bottom:110px}
+#view-menu.active{display:block}
+.menu-header{background:linear-gradient(135deg,var(--dark) 0%,var(--purple) 100%);padding:18px 20px;text-align:center;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,0.3)}
+.menu-header .table-info{color:var(--gold);font-size:10px;letter-spacing:4px;margin-bottom:3px}
+.menu-header h2{font-family:'Cormorant Garamond',serif;color:white;font-size:24px;font-weight:300;letter-spacing:4px}
+.category-tabs{display:flex;overflow-x:auto;background:white;border-bottom:1px solid var(--border);padding:0 12px;scrollbar-width:none;position:sticky;top:77px;z-index:99;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.category-tabs::-webkit-scrollbar{display:none}
+.cat-tab{padding:13px 16px;font-size:9px;font-weight:700;letter-spacing:2px;color:rgba(61,46,30,0.38);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:all 0.2s;background:none;border-top:none;border-left:none;border-right:none}
+.cat-tab.active,.cat-tab:hover{color:var(--gold);border-bottom-color:var(--gold)}
+.menu-section{padding:22px 16px 8px}
+.section-title{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:300;letter-spacing:4px;color:var(--dark);margin-bottom:3px}
+.section-sub{font-size:10px;letter-spacing:2px;color:var(--gold);margin-bottom:14px}
+.menu-item{display:flex;align-items:center;justify-content:space-between;padding:15px 0;border-bottom:1px solid var(--border);gap:12px}
+.item-info{flex:1}
+.item-name{font-size:12px;font-weight:600;letter-spacing:0.8px;color:var(--dark);margin-bottom:3px}
+.item-desc{font-size:10px;color:rgba(61,46,30,0.48);line-height:1.5}
+.item-price{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--gold);min-width:40px;text-align:right}
+.add-btn{width:34px;height:34px;background:var(--dark);border:none;border-radius:50%;color:var(--gold);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.18s;flex-shrink:0}
+.add-btn:active{transform:scale(0.92)}
+.qty-control{display:flex;align-items:center;gap:8px}
+.qty-btn{width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:white;color:var(--dark);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.18s}
+.qty-btn:active{background:var(--dark);color:white}
+.qty-num{font-weight:700;font-size:15px;min-width:20px;text-align:center;color:var(--dark)}
+.extra-note{font-size:10px;color:rgba(61,46,30,0.5);padding:9px 14px;background:rgba(184,150,90,0.05);margin:6px 0;border-left:3px solid var(--gold)}
+.section-divider{height:6px;background:linear-gradient(90deg,var(--gold),transparent);opacity:0.1;margin:6px 0}
+
+/* CART BAR */
+.cart-bar{position:fixed;bottom:0;left:0;right:0;background:var(--dark);padding:14px 20px;display:none;align-items:center;justify-content:space-between;z-index:200;box-shadow:0 -4px 20px rgba(0,0,0,0.35)}
+.cart-bar.visible{display:flex}
+.cart-info .cart-count{font-size:10px;letter-spacing:2px;color:var(--gold)}
+.cart-info .cart-total{font-family:'Cormorant Garamond',serif;font-size:24px;color:white}
+.btn-cart{padding:13px 24px;background:linear-gradient(135deg,var(--gold),var(--gold-light));border:none;border-radius:10px;color:var(--dark);font-size:11px;font-weight:700;letter-spacing:2px;cursor:pointer}
+
+/* CART VIEW */
+#view-cart{background:var(--cream);min-height:100vh}
+#view-cart.active{display:block}
+.cart-header{background:linear-gradient(135deg,var(--dark),var(--purple));padding:22px 20px;color:white;display:flex;align-items:center;gap:14px}
+.back-btn{background:none;border:none;color:var(--gold);font-size:24px;cursor:pointer;padding:4px 8px}
+.cart-header h2{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;letter-spacing:3px}
+.table-badge{margin-left:auto;background:rgba(184,150,90,0.2);border:1px solid var(--gold);border-radius:8px;padding:5px 12px;font-size:10px;color:var(--gold);letter-spacing:2px;white-space:nowrap}
+.cart-items{padding:16px}
+.cart-item{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border)}
+.cart-item-name{font-size:13px;font-weight:600;color:var(--dark)}
+.cart-item-qty{font-size:11px;color:var(--gold);margin-top:3px}
+.cart-item-price{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--dark)}
+.cart-total-block{margin:16px;padding:20px 22px;background:var(--dark);border-radius:16px}
+.total-line{display:flex;justify-content:space-between;color:rgba(255,255,255,0.45);font-size:11px;margin-bottom:10px;letter-spacing:1px}
+.total-line.main{color:var(--gold);font-size:15px;font-weight:700;margin-bottom:0;letter-spacing:2px}
+.note-section{padding:0 16px 18px}
+.note-label{font-size:10px;letter-spacing:3px;color:var(--gold);margin-bottom:7px}
+textarea{width:100%;padding:13px;border:1px solid var(--border);border-radius:12px;background:white;font-family:'Montserrat',sans-serif;font-size:13px;color:var(--dark);resize:none;outline:none}
+textarea:focus{border-color:var(--gold)}
+.confirm-btn-wrap{padding:0 16px 44px}
+
+/* SUCCESS */
+#view-success{background:linear-gradient(160deg,#2a1f14,#6b3fa0);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px}
+#view-success.active{display:flex}
+.success-icon{font-size:68px;margin-bottom:22px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+#view-success h2{font-family:'Cormorant Garamond',serif;color:white;font-size:36px;font-weight:300;letter-spacing:4px;text-align:center;margin-bottom:12px}
+#view-success p{color:rgba(255,255,255,0.55);text-align:center;font-size:12px;letter-spacing:1px;margin-bottom:36px;line-height:2.3}
+.order-num{background:rgba(184,150,90,0.14);border:1px solid var(--gold);border-radius:16px;padding:18px 36px;margin-bottom:28px;text-align:center}
+.order-num .label{color:var(--gold);font-size:10px;letter-spacing:3px;margin-bottom:5px}
+.order-num .num{font-family:'Cormorant Garamond',serif;color:white;font-size:42px}
+
+/* OVERLAYS */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:linear-gradient(135deg,#219a52,#27ae60);color:white;padding:13px 22px;border-radius:14px;font-size:12px;font-weight:600;letter-spacing:1px;z-index:9999;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);box-shadow:0 8px 24px rgba(0,0,0,0.4);max-width:88vw;text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.error{background:linear-gradient(135deg,#c0392b,#e74c3c)}
+.loading-overlay{position:fixed;inset:0;background:rgba(18,16,30,0.82);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9000;transition:opacity 0.3s}
+.loading-overlay.hidden{opacity:0;pointer-events:none}
+.spinner{width:42px;height:42px;border:3px solid rgba(184,150,90,0.2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-overlay p{color:rgba(255,255,255,0.45);font-size:10px;letter-spacing:3px}
+</style>
+</head>
+<body>
+<div class="loading-overlay hidden" id="loadingOverlay"><div class="spinner"></div><p id="loadingText">CHARGEMENT...</p></div>
+<div class="toast" id="toast"></div>
+
+<div id="view-table" class="view active">
+  <div class="palm-logo">
+    <div class="subtitle">🌴 BIENVENUE AU</div>
+    <h1>THE PALM</h1>
+    <div class="lounge">RESTAURANT &amp; LOUNGE</div>
+  </div>
+  <div class="table-card">
+    <h2>Entrez votre numéro de table</h2>
+    <p>SAISISSEZ LE NUMÉRO INDIQUÉ SUR VOTRE TABLE</p>
+    <div class="table-input-wrap">
+      <div class="table-input-label">N° TABLE</div>
+      <input class="table-input" type="number" id="tableInput" placeholder="01" min="1" max="99" oninput="onTableInput(this)">
+    </div>
+    <button class="btn-gold" id="confirmTable" disabled>CONFIRMER — TABLE <span id="selectedTableLabel">?</span></button>
+  </div>
+</div>
+
+<div id="view-menu" class="view">
+  <div class="menu-header">
+    <div class="table-info" id="menuTableLabel">TABLE —</div>
+    <h2>THE PALM</h2>
+  </div>
+  <div class="category-tabs" id="catTabs"></div>
+  <div id="menuContent"></div>
+  <div class="cart-bar" id="cartBar">
+    <div class="cart-info">
+      <div class="cart-count"><span id="cartCount">0</span> ARTICLE(S)</div>
+      <div class="cart-total"><span id="cartTotal">0</span>€</div>
+    </div>
+    <button class="btn-cart" onclick="showCart()">VOIR MON PANIER →</button>
+  </div>
+</div>
+
+<div id="view-cart" class="view">
+  <div class="cart-header">
+    <button class="back-btn" onclick="showView('menu')">←</button>
+    <h2>MON PANIER</h2>
+    <div class="table-badge" id="cartTableBadge">TABLE —</div>
+  </div>
+  <div class="cart-items" id="cartItemsList"></div>
+  <div class="cart-total-block">
+    <div class="total-line"><span>SOUS-TOTAL</span><span id="cartSubtotal">0€</span></div>
+    <div class="total-line main"><span>TOTAL</span><span id="cartFinalTotal">0€</span></div>
+  </div>
+  <div class="note-section">
+    <div class="note-label">💬 NOTE / ALLERGIES</div>
+    <textarea id="orderNote" rows="3" placeholder="Ex: sans gluten, allergie aux noix, cuisson bien cuit..."></textarea>
+  </div>
+  <div class="confirm-btn-wrap">
+    <button class="btn-gold" id="sendOrderBtn" onclick="confirmOrder()">✓ ENVOYER MA COMMANDE</button>
+  </div>
+</div>
+
+<div id="view-success" class="view">
+  <div class="success-icon">✅</div>
+  <h2>COMMANDE<br>ENVOYÉE !</h2>
+  <p>Votre commande a été transmise<br>directement à notre équipe.<br>Nous vous servons très vite !</p>
+  <div class="order-num">
+    <div class="label">COMMANDE N°</div>
+    <div class="num" id="orderNum">#001</div>
+  </div>
+  <button class="btn-gold" onclick="newOrder()" style="max-width:300px;width:100%">+ AJOUTER D'AUTRES ARTICLES</button>
+</div>
+
+<script>
+const SUPABASE_URL='https://maqtghwrzztscibzrbeh.supabase.co';
+const SUPABASE_KEY='sb_publishable_OnTJml3M6Y2ouPqYAj_W6A_U19BOQSZ';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+const MENU=[
+  {id:'entrees',label:'ENTRÉES',title:'ENTRÉES',items:[
+    {id:'bur',name:'BURRATA',desc:'Fromage italien, tomates, balsamiques',price:12},
+    {id:'car',name:'CARPACCIO',desc:'Fines tranches de bœuf, parmesan (supp. Buratta 6€)',price:11},
+    {id:'foi',name:'FOIE GRAS',desc:'Foie gras de canard, confiture de figues, toasts',price:14},
+  ]},
+  {id:'plats',label:'PLATS',title:'PLATS',sub:'SERVIS AVEC ACCOMPAGNEMENT AU CHOIX',extra:'⭐ SUPPLÉMENT GARNITURE 5€ — Frite maison, sauté de légumes, purée maison',items:[
+    {id:'esc',name:'ESCALOPE NORMANDE',desc:'Filet de poulet tendre, sauce forestière',price:17},
+    {id:'ent',name:'ENTRECÔTE',desc:'Belle pièce de bœuf grillée, servie avec sauce',price:25},
+    {id:'fil',name:'FILET DE BŒUF',desc:'Pièce de bœuf tendre et juteuse, servie avec sauce',price:26},
+    {id:'sal',name:'PAVÉ DE SAUMON',desc:'Crème de citron, sauce pesto',price:20},
+    {id:'carb',name:'PÂTES CARBONARA',desc:'Lardon, crème liquide, parmesan, œuf',price:15},
+    {id:'arr',name:'PÂTES PENNE ARRABBIATA',desc:'Sauce tomate épicée piquante, burrata',price:15},
+    {id:'forr',name:'PÂTE FORESTIÈRE',desc:'Poulet, champignons, crème liquide, parmesan',price:15},
+  ]},
+  {id:'desserts',label:'DESSERTS',title:'DESSERTS',items:[
+    {id:'tro',name:"TROMPE L'ŒIL",desc:'Selon arrivage',price:12},
+    {id:'pat',name:'PÂTISSERIE',desc:'Selon arrivage',price:10},
+    {id:'pai',name:'PAIN PERDU',desc:'Fruits rouges, chocolat ou caramel beurre salé',price:10},
+  ]},
+  {id:'boissons',label:'SOFTS',title:'BOISSONS',items:[
+    {id:'caf',name:'CAFÉ',desc:'',price:2},{id:'the2',name:'THÉ',desc:'',price:5},
+    {id:'evi',name:'EVIAN 50CL',desc:'',price:6},{id:'san',name:'SANPELLEGRINO 65CL',desc:'',price:6},
+    {id:'coc',name:'COCA 33CL',desc:'',price:6},{id:'coz',name:'COCA ZERO 33CL',desc:'',price:6},
+    {id:'cch',name:'COCA CHERRY 33CL',desc:'',price:6},{id:'ice',name:'ICE TEA 33CL',desc:'',price:6},
+    {id:'oas',name:'OASIS 33CL',desc:'',price:6},{id:'spr',name:'SPRITE 33CL',desc:'',price:6},
+    {id:'ora',name:'ORANGINA 25CL',desc:'',price:6},{id:'red',name:'REDBULL 25CL',desc:'',price:6},
+  ]},
+  {id:'jus',label:'JUS',title:'JUS',items:[
+    {id:'pom',name:'POMME',desc:'',price:5},{id:'jor',name:'ORANGE',desc:'',price:5},
+    {id:'jan',name:'ANANAS',desc:'',price:5},{id:'jpa',name:'PASSION',desc:'',price:5},
+    {id:'jcr',name:'CRANBERRY',desc:'',price:5},{id:'jma',name:'MANGUE',desc:'',price:5},
+  ]},
+  {id:'mocktails',label:'MOCKTAILS',title:'MOCKTAILS',items:[
+    {id:'vm',name:'VIRGIN MOJITO 33CL',desc:'Feuille de menthe, citron vert, sucre de canne, limonade',price:10},
+    {id:'cp',name:'COCO PINEAPPLE 50CL',desc:"Crème de coco, jus d'ananas, sucre de canne",price:10},
+    {id:'ps',name:'PORN STAR 25CL',desc:"Jus de passion, jus d'orange, sirop vanille",price:10},
+    {id:'rb',name:'RED BERRY 50CL',desc:'Jus cranberry, jus de pomme, sirop myrtille, sirop framboise',price:10},
+    {id:'lm',name:"LE MINT'S 50CL",desc:'Jus de mangue, crème de coco, sirop cerise',price:10},
+    {id:'vir',name:"VIRIDIS' 50CL",desc:'Jus pomme, sirop banane, sirop kiwi',price:10},
+  ]},
+  {id:'cocktails',label:'COCKTAILS',title:'COCKTAILS',items:[
+    {id:'moj',name:'MOJITO 33CL',desc:'Menthe, citron vert, sucre de canne, rhum 6cl, limonade',price:12},
+    {id:'psc',name:'PORN STAR 20CL',desc:'Jus passion, liqueur passion 2cl, vodka 4cl, jus pomme, sirop vanille',price:12},
+    {id:'teq',name:'TEQUILA SUNRISE 30CL',desc:"Tequila 5cl, jus d'orange, sirop grenadine",price:12},
+    {id:'cos',name:'COSMOPOLITAN 30CL',desc:'Vodka 5cl, triple sec 2cl, jus cranberry, citron vert',price:12},
+    {id:'jc',name:'JACK CHARM 30CL',desc:"Jack Daniel's 4cl, triple sec 2cl, jus de pomme, sirop vanille",price:12},
+  ]},
+  {id:'alcool',label:'ALCOOL',title:'ALCOOL',items:[
+    {id:'wh',name:'VERRE DE WHISKY',desc:'',price:10},{id:'vo',name:'VERRE DE VODKA',desc:'',price:10},
+    {id:'supcoc',name:'SUPPLÉMENT COCA / REDBULL',desc:'',price:2},
+    {id:'bv',name:'BOUTEILLE DE VIN',desc:'',price:40},{id:'bc',name:'BOUTEILLE DE CHAMPAGNE',desc:'',price:80},
+  ]},
+  {id:'hookah',label:'HOOKAH 🌿',title:'HOOKAH',items:[
+    {id:'qhs',name:'QUASAR HOMME — SEMAINE',desc:'Menthe, Mi Amor, Hawaï Love66, African Queen',price:15},
+    {id:'qfs',name:'QUASAR FEMME — SEMAINE',desc:'Menthe, Mi Amor, Hawaï Love66, African Queen',price:10},
+    {id:'qhw',name:'QUASAR HOMME — WEEK-END',desc:'Menthe Sucrée / Water Melon +5€ supp',price:20},
+    {id:'qfw',name:'QUASAR FEMME — WEEK-END',desc:'Menthe Sucrée / Water Melon +5€ supp',price:15},
+  ]},
+];
+
+let selectedTable=null,cart={},currentView='table';
+let toastTimer=null;
+
+function init(){
+  buildMenu();
+  document.getElementById('confirmTable').onclick=()=>{
+    if(!selectedTable)return;
+    document.getElementById('menuTableLabel').textContent='📍 TABLE N°'+selectedTable;
+    document.getElementById('cartTableBadge').textContent='TABLE '+selectedTable;
+    showView('menu');
+  };
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&currentView==='table'&&selectedTable)document.getElementById('confirmTable').click();
+  });
+}
+
+function onTableInput(el){
+  const val=parseInt(el.value);
+  const valid=!isNaN(val)&&val>=1&&val<=99;
+  selectedTable=valid?val:null;
+  document.getElementById('selectedTableLabel').textContent=valid?val:'?';
+  document.getElementById('confirmTable').disabled=!valid;
+}
+
+function buildMenu(){
+  const tabs=document.getElementById('catTabs'),content=document.getElementById('menuContent');
+  tabs.innerHTML='';content.innerHTML='';
+  MENU.forEach((cat,idx)=>{
+    const tab=document.createElement('button');
+    tab.className='cat-tab'+(idx===0?' active':'');
+    tab.textContent=cat.label;
+    tab.onclick=()=>{
+      document.querySelectorAll('.cat-tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('sec-'+cat.id)?.scrollIntoView({behavior:'smooth',block:'start'});
+    };
+    tabs.appendChild(tab);
+    const sec=document.createElement('div');
+    sec.id='sec-'+cat.id;sec.className='menu-section';
+    sec.innerHTML=`<div class="section-title">${cat.title}</div>${cat.sub?`<div class="section-sub">${cat.sub}</div>`:''}`;
+    cat.items.forEach(item=>{
+      const d=document.createElement('div');d.className='menu-item';
+      const sn=item.name.replace(/'/g,'&#39;');
+      d.innerHTML=`<div class="item-info"><div class="item-name">${item.name}</div>${item.desc?`<div class="item-desc">${item.desc}</div>`:''}</div><div class="item-price">${item.price}€</div><div id="ctrl-${item.id}"><button class="add-btn" onclick="addItem('${item.id}','${sn}',${item.price})">+</button></div>`;
+      sec.appendChild(d);
+    });
+    if(cat.extra){const e=document.createElement('div');e.className='extra-note';e.textContent=cat.extra;sec.appendChild(e);}
+    content.appendChild(sec);
+    if(idx<MENU.length-1){const div=document.createElement('div');div.className='section-divider';content.appendChild(div);}
+  });
+}
+
+function addItem(id,name,price){
+  if(!cart[id])cart[id]={name,price,qty:0};
+  cart[id].qty++;updateCtrl(id);updateCartBar();
+}
+function removeItem(id){
+  if(!cart[id])return;cart[id].qty--;
+  if(cart[id].qty<=0)delete cart[id];
+  updateCtrl(id);updateCartBar();
+}
+function updateCtrl(id){
+  const el=document.getElementById('ctrl-'+id);if(!el)return;
+  const item=cart[id];
+  if(!item||item.qty===0){
+    const f=MENU.flatMap(c=>c.items).find(i=>i.id===id);
+    const sn=(f?.name||'').replace(/'/g,'&#39;');
+    el.innerHTML=`<button class="add-btn" onclick="addItem('${id}','${sn}',${f?.price||0})">+</button>`;
+  } else {
+    const sn=item.name.replace(/'/g,'&#39;');
+    el.innerHTML=`<div class="qty-control"><button class="qty-btn" onclick="removeItem('${id}')">−</button><span class="qty-num">${item.qty}</span><button class="qty-btn" onclick="addItem('${id}','${sn}',${item.price})">+</button></div>`;
+  }
+}
+function updateCartBar(){
+  const items=Object.values(cart);
+  const count=items.reduce((s,i)=>s+i.qty,0);
+  const total=items.reduce((s,i)=>s+i.qty*i.price,0);
+  document.getElementById('cartCount').textContent=count;
+  document.getElementById('cartTotal').textContent=total;
+  document.getElementById('cartBar').classList.toggle('visible',count>0);
+}
+function showCart(){
+  const items=Object.values(cart);
+  const total=items.reduce((s,i)=>s+i.qty*i.price,0);
+  document.getElementById('cartItemsList').innerHTML=items.map(i=>`<div class="cart-item"><div><div class="cart-item-name">${i.name}</div><div class="cart-item-qty">x${i.qty}</div></div><div class="cart-item-price">${i.qty*i.price}€</div></div>`).join('');
+  document.getElementById('cartSubtotal').textContent=total+'€';
+  document.getElementById('cartFinalTotal').textContent=total+'€';
+  showView('cart');
+}
+async function confirmOrder(){
+  const items=Object.values(cart);if(!items.length)return;
+  const btn=document.getElementById('sendOrderBtn');
+  btn.disabled=true;btn.textContent='ENVOI EN COURS...';
+  showLoading('ENVOI DE LA COMMANDE...');
+  const total=items.reduce((s,i)=>s+i.qty*i.price,0);
+  const note=document.getElementById('orderNote').value.trim();
+  try{
+    const{data,error}=await sb.from('orders').insert({
+      table_number:selectedTable,
+      items:items.map(i=>({name:i.name,price:i.price,qty:i.qty})),
+      total,note,status:'pending'
+    }).select().single();
+    if(error)throw error;
+    hideLoading();
+    document.getElementById('orderNum').textContent='#'+String(data.order_number).padStart(3,'0');
+    cart={};updateCartBar();
+    MENU.forEach(cat=>cat.items.forEach(item=>{
+      const el=document.getElementById('ctrl-'+item.id);
+      const sn=item.name.replace(/'/g,'&#39;');
+      if(el)el.innerHTML=`<button class="add-btn" onclick="addItem('${item.id}','${sn}',${item.price})">+</button>`;
+    }));
+    document.getElementById('orderNote').value='';
+    btn.disabled=false;btn.textContent='✓ ENVOYER MA COMMANDE';
+    showView('success');
+  }catch(err){
+    hideLoading();
+    showToast('❌ Erreur réseau. Réessayez.','error');
+    btn.disabled=false;btn.textContent='✓ ENVOYER MA COMMANDE';
+  }
+}
+function newOrder(){showView('menu');}
+function showView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  currentView=name;
+}
+function showLoading(t){document.getElementById('loadingText').textContent=t||'CHARGEMENT...';document.getElementById('loadingOverlay').classList.remove('hidden');}
+function hideLoading(){document.getElementById('loadingOverlay').classList.add('hidden');}
+function showToast(msg,type='success'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast'+(type==='error'?' error':'')+' show';
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3500);
+}
+init();
+</script>
+</body>
+</html>
